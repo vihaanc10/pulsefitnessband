@@ -89,6 +89,7 @@ Actions to capture (PRD section 8, steps 3 and 4):
 - Write to `6e400002`, listen on `6e400003`; no pairing or keys.
 - `0x03` = battery request and reply (the only opcode the main README gives). Other features are named (set time, heart-rate log and its interval, real-time heart rate and SpO2, steps, sleep) but their opcodes are in source files we have not read yet.
 - That ring's command-line tool also has `reboot` and raw-packet commands, so treat unknown writes with care.
+- Heart-rate logging setting (command `16`, from the public docs, unverified): read = `16 01 ...`; write = `16 02 <1 = on, 2 = off> <interval in minutes, 1-255>`; reply has byte 2 = 1 (on) / 2 (off) and byte 3 = interval. Example reply in the docs: `16 01 01 3C ...` = on, every 60 minutes.
 - One write-up says the purpose of the third (`de5bf728`) service is unknown.
 - Gadgetbridge supports QRing-based Colmi rings; we could not check it for this band (site blocked in the cloud session). Next test is in Pulse: "Test: ask the band for its battery".
 

@@ -82,6 +82,8 @@ fun DeviceScreen(vm: SpikeViewModel, conn: BandConnection) {
                 if (state == BandConnection.State.Ready) {
                     OutlinedButton(onClick = { conn.subscribeToAll() }) { Text("Subscribe to all notifications") }
                     Button(onClick = { conn.requestBattery() }) { Text("Test: ask the band for its battery") }
+                    OutlinedButton(onClick = { conn.requestHeartRateSettings() }) { Text("Check: is heart-rate logging on?") }
+                    Button(onClick = { conn.enableHeartRateLogging(5) }) { Text("Turn ON heart-rate logging (every 5 min)") }
                     OutlinedButton(onClick = { conn.requestHeartRateLog() }) { Text("Test: read today's heart-rate log") }
                     OutlinedButton(onClick = { conn.requestSteps() }) { Text("Test: read today's steps") }
                     OutlinedButton(onClick = { conn.requestHeartRateLog(1) }) { Text("Test: read yesterday's heart-rate log") }

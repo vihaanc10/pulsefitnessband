@@ -197,6 +197,12 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
 
     fun requestBattery() = sendQc(0x03)
 
+    /** Read-only: asks whether automatic heart-rate logging is on, and how often. */
+    fun requestHeartRateSettings() = sendQc(0x16, byteArrayOf(1))
+
+    /** WRITES a setting on the band: turns automatic heart-rate logging on, one reading every [minutes]. */
+    fun enableHeartRateLogging(minutes: Int) = sendQc(0x16, byteArrayOf(2, 1, minutes.toByte()))
+
     /** Heart-rate log for a day. The request carries that day's midnight (our local time) as a Unix timestamp. */
     fun requestHeartRateLog(daysAgo: Int = 0) {
         val midnight = LocalDate.now().minusDays(daysAgo.toLong()).atStartOfDay(ZoneId.systemDefault()).toEpochSecond()

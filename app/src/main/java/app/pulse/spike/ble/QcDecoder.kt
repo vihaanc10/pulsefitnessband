@@ -26,6 +26,7 @@ class QcDecoder(private val log: MessageLog) {
     fun onPacket(p: ByteArray) {
         if (p.size != 16) return
         when (p[0].toInt() and 0xFF) {
+            0x16 -> heartRateSettings(p)
             0x15 -> heartRate(p)
             0x43 -> steps(p)
         }
@@ -51,6 +52,15 @@ class QcDecoder(private val log: MessageLog) {
                 if (sub == hrExpected - 1) summariseHeartRate()
             }
         }
+    }
+
+    private fun heartRateSettings(p: ByteArray) {
+        val state = when (u(p, 2)) {
+            1 -> "ON"
+            2 -> "OFF"
+            else -> "unclear (value ${u(p, 2)})"
+        }
+        log.info("decoded", "Heart-rate logging is $state, interval ${u(p, 3)} minutes (unverified)")
     }
 
     private fun put(value: Int) {
