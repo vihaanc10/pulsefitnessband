@@ -176,6 +176,22 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
             .forEach { setSubscribed(it, true) }
     }
 
+    /**
+     * One-tap test: listen on the reply slot, then send the "battery" request that the public
+     * Colmi docs describe (command 0x03). It only asks a question; it changes nothing on the band.
+     */
+    fun requestBattery() {
+        val chars = _services.value.flatMap { it.characteristics }
+        val send = chars.firstOrNull { it.serviceUuid == QC_SERVICE && it.uuid == QC_WRITE }
+        val reply = chars.firstOrNull { it.serviceUuid == QC_SERVICE && it.uuid == QC_NOTIFY }
+        if (send == null || reply == null) {
+            log.info("error", "This band has no 6e40fff0 service, so the battery test can't run")
+            return
+        }
+        if (reply.key !in _subscribed.value) setSubscribed(reply, true)
+        write(send, qcPacket(0x03), noResponse = !send.canWrite)
+    }
+
     private fun find(info: CharInfo): BluetoothGattCharacteristic? {
         val ch = gatt?.getService(info.serviceUuid)?.getCharacteristic(info.uuid)
         if (ch == null) log.info("error", "Characteristic not found", info.uuid.toString())
@@ -265,6 +281,10 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
     }
 
     private companion object {
+        val QC_SERVICE: UUID = UUID.fromString("6e40fff0-b5a3-f393-e0a9-e50e24dcca9e")
+        val QC_WRITE: UUID = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e")
+        val QC_NOTIFY: UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e")
+
         /** The standard "turn notifications on/off" switch every BLE characteristic uses. */
         val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     }

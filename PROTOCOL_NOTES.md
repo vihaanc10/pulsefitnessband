@@ -81,6 +81,15 @@ Actions to capture (PRD section 8, steps 3 and 4):
 
 ## 5. Packet format guesses
 
+**Hints from public Colmi-ring docs (read 2026-10-29; none of this is verified on our band):**
+
+- Packets are 16 bytes both ways: byte 0 = command, bytes 1-14 = data, byte 15 = checksum (one source says sum of the other 15 bytes modulo 255, another assumed 256; our one sample `73 01 ... 74` fits both, so we can't tell yet).
+- Write to `6e400002`, listen on `6e400003`; no pairing or keys.
+- `0x03` = battery request and reply (the only opcode the main README gives). Other features are named (set time, heart-rate log and its interval, real-time heart rate and SpO2, steps, sleep) but their opcodes are in source files we have not read yet.
+- That ring's command-line tool also has `reboot` and raw-packet commands, so treat unknown writes with care.
+- One write-up says the purpose of the third (`de5bf728`) service is unknown.
+- Gadgetbridge supports QRing-based Colmi rings; we could not check it for this band (site blocked in the cloud session). Next test is in Pulse: "Test: ask the band for its battery".
+
 _(Only after several captures. For each: byte positions, what each byte means, and which captures support it. Mark anything not yet seen in at least two captures as "guess".)_
 
 ## 6. Phase 0 exit check (PRD section 8)
