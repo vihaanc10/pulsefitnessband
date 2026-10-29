@@ -40,7 +40,11 @@ import app.pulse.spike.shareLogFile
 
 private fun neededPermissions(): Array<String> =
     if (Build.VERSION.SDK_INT >= 31) {
-        arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
+        arrayOf(
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.ACCESS_FINE_LOCATION, // some phones return no scan results without it
+        )
     } else {
         arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
     }
@@ -59,7 +63,7 @@ fun ScannerScreen(vm: SpikeViewModel) {
         message = if (results.values.all { it }) {
             vm.scanner.start()
         } else {
-            "Pulse needs the permission to find nearby devices. You can allow it in Android Settings > Apps > Pulse Phase 0."
+            "Pulse needs the Nearby devices and Location permissions to find devices. Allow them in Android Settings > Apps > Pulse Phase 0 > Permissions."
         }
     }
 

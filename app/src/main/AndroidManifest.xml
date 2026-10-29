@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Android 11 and older: Bluetooth scanning needs these two plus location. -->
+    <!-- Android 11 and older: Bluetooth scanning needs these two. -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+
+    <!-- Needed on all versions: some phones (e.g. Xiaomi) return no scan results without it.
+         Pulse never reads your position. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- Android 12 and newer: the "Nearby devices" permission. -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
