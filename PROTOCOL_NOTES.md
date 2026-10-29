@@ -52,12 +52,15 @@ One row per thing I did. "Bytes written" = phone to band. "Bytes received" = ban
 | 2 | Waited / pressed band button / walked (exact trigger unknown) | `6e400003` | nothing | one notification: `73 01 00 00 00 00 00 00 00 00 00 00 00 00 00 74` (16 bytes) | Last byte `74` = sum of the first 15 bytes (`73+01`), so this looks like a 16-byte packet with a checksum. Meaning of `73 01` unknown. | guess | log screenshots |
 | 3 | Pulse test button "ask the band for its battery" (sent twice) | `6e400002` write, reply on `6e400003` | `03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03` | `03 5B 00 00 00 00 00 00 00 00 00 00 00 00 00 5E` (identical both times, about 0.1 s after the write) | The band answers a Colmi-style battery request. Reply echoes command `03`, checksum OK (`03+5B=5E`). Byte 1 = `5B` = 91, which fits a battery percentage (byte meaning is from the public docs, not yet cross-checked against a second reading). | yes for the command and checksum, guess for "91% battery" | log screenshot, 2026-10-29 03:31 |
 | 4 | Pulse test button "read today's heart-rate log" (tapped twice, at 03:37 local time, 2026-10-30 UTC+8) | `6e400002` write, reply on `6e400003` | `15 80 6D E3 6A 00 00 00 00 00 00 00 00 00 00 4F` (`15` = command; `80 6D E3 6A` = 0x6AE36D80 = 1793289600, today's local midnight as a Unix timestamp, little-endian) | `15 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 14` | Second byte `FF` is "no data" in the public docs. So the band answers the heart-rate command but has nothing for today. Unknown whether the band is not logging heart rate, was not worn, or wants a different timestamp. | command answered: yes; "no data": guess | log screenshot, 2026-10-30 03:37 |
+| 5 | Pulse Tests tab, 2026-10-30 (user report, no screenshot): heart-rate log today, way A then way B | `6e400002` write, reply on `6e400003` | `15` + local midnight as a Unix timestamp. Way A = true time of local midnight. Way B = local midnight treated as if it were UTC. | Way A: "no data". **Way B: readings returned, latest 93 bpm.** | The band's day boundaries use its own local clock with no time zone, so **way B is the correct request**. Pulse's sync already tries way B first. | way B works: yes (user-observed) | user report, ~04:00 |
+| 6 | Same session: steps today | `6e400002` write | `43 00 0F 00 5F 01 ...` | "no data for today" (user barely walked, so not suspicious yet) | Unclear whether "no data" is correct. Check again after a day of walking. | unconfirmed | user report |
+| 7 | Same session: set the band's clock to the phone's time | `6e400002` write | `01` + 7 BCD bytes (local time) | The band answered (feature list, ignored). | Accepted, no handshake needed. | yes | user report |
 
 Actions to capture (PRD section 8, steps 3 and 4):
 
 - [ ] Connect / pair for the first time
 - [x] Read battery level (command `03`, works without any handshake)
-- [ ] Sync heart-rate log (command `15` answers; today returned "no data", yesterday not tested yet)
+- [x] Sync heart-rate log: works with request way B (command `15`, day = local midnight treated as UTC). Way A returns "no data".
 - [ ] Sync SpO2 log
 - [ ] Sync sleep
 - [ ] Sync steps / calories / distance
@@ -101,6 +104,6 @@ _(Only after several captures. For each: byte positions, what each byte means, a
 
 Go if a prototype can read heart rate, sleep and steps **without QWatch Pro**.
 
-- [ ] Heart rate read without QWatch Pro
+- [x] Heart rate read without QWatch Pro (log, way B)
 - [ ] Sleep read without QWatch Pro
 - [ ] Steps read without QWatch Pro
