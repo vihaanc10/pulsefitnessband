@@ -11,6 +11,9 @@ Like a normal fitness app (WHOOP / QWatch Pro): open it, wait about 30 seconds, 
 - GitHub builds `Pulse.apk` on every push (`.github/workflows/build-apk.yml`) and attaches it to the "Pulse (latest)" release. The repo is private, so the download link only works for people with repo access.
 - The band was worn overnight with heart-rate logging on (every 5 minutes).
 
+## Owner wants the repo public (cloud session can't do it)
+The owner asked for `vihaanc10/pulsefitnessband` to be public. The cloud session is blocked from changing repository settings (HTTP 403), so the owner must do it: GitHub > repo > Settings > Danger Zone > Change repository visibility. **Before they do:** every commit carries the owner's real email (`(private email removed)`) and `PROTOCOL_NOTES.md` has the band's MAC address. Offer to (a) blank the MAC and (b) rewrite history with GitHub's noreply email so the email isn't public. No passwords or keys were found in the repo.
+
 ## Tomorrow, in order
 1. Install the newest build on the phone. Easiest: download `Pulse.apk` from the Releases page on the phone (no PC, no developer mode). Then Profile > Add device > tap the band. Check that auto-sync works and Home shows last night's heart rate. Fix whatever breaks (ask for screenshots of the Log tab in the Bluetooth lab).
 2. Read steps (check "no data" again after walking) and find out whether the band stores sleep. Look for the sleep command (probably the second service `de5bf728-...` or a command in the public Colmi docs; `github.com` pages are reachable from the cloud session, `notes.tahnok.ca` and `gadgetbridge.org` are blocked).
