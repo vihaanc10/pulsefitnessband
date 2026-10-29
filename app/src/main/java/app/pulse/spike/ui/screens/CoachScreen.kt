@@ -77,6 +77,7 @@ fun CoachScreen(ui: PulseUiState, repo: HealthRepository) {
                 onOpenLab = { ui.labOpen = true },
                 status = ui.syncStatus,
                 onSync = if (ui.bandSaved && !ui.useSample) ui.syncAction else null,
+                onAddDevice = if (!ui.bandSaved && !ui.useSample) ({ ui.addDeviceOpen = true }) else null,
             )
         } else {
             val day = remember(repo) { repo.day(LocalDate.now()) }

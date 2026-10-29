@@ -72,6 +72,11 @@ class BandSync(
                 return
             }
 
+            if (!conn.supportsQc()) {
+                onStatus(false, "This band speaks a different Bluetooth language that Pulse can't read yet.")
+                return
+            }
+
             onStatus(true, "Syncing: setting the clock...")
             conn.setBandClock()
             delay(1200)

@@ -190,6 +190,7 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     status: String? = null,
     onSync: (() -> Unit)? = null,
+    onAddDevice: (() -> Unit)? = null,
 ) {
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         ProgressRing(progress = 0f, color = PulseColors.Green, modifier = Modifier.size(200.dp)) {
@@ -207,8 +208,9 @@ fun EmptyState(
         }
         Spacer(Modifier.height(28.dp))
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (onAddDevice != null) PulseButton("Add device", onAddDevice)
             if (onSync != null) PulseButton("Sync now", onSync)
-            PulseButton("Preview with sample data", onPreview, filled = onSync == null)
+            PulseButton("Preview with sample data", onPreview, filled = onSync == null && onAddDevice == null)
             PulseButton("Open Bluetooth lab", onOpenLab, filled = false)
         }
     }

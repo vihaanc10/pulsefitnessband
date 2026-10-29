@@ -21,11 +21,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +53,7 @@ import kotlin.math.roundToInt
 fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) {
     val user = repo.user
     val device = repo.device
+    var confirmRemove by remember { mutableStateOf(false) }
 
     Column(
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
@@ -77,7 +83,7 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
         PulseCard {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(device.name, style = PulseType.Title)
+                    Text(if (!ui.useSample && !ui.bandSaved) "No device added" else device.name, style = PulseType.Title)
                     Spacer(Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
@@ -99,17 +105,23 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
             Spacer(Modifier.height(16.dp))
             Text("Last sync: ${ui.lastSync ?: device.lastSync}", style = PulseType.Caption)
             Spacer(Modifier.height(18.dp))
-            if (ui.bandSaved && !ui.useSample) {
-                PulseButton(if (ui.syncing) "Syncing..." else "Sync now", onClick = onSync, filled = !ui.syncing)
-                if (ui.syncStatus.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(ui.syncStatus, style = PulseType.Caption)
+            if (!ui.useSample) {
+                if (ui.bandSaved) {
+                    PulseButton(if (ui.syncing) "Syncing..." else "Sync now", onClick = onSync, filled = !ui.syncing)
+                    if (ui.syncStatus.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(ui.syncStatus, style = PulseType.Caption)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    PulseButton("Remove device", onClick = { confirmRemove = true }, filled = false)
+                } else {
+                    PulseButton("Add device", onClick = { ui.addDeviceOpen = true })
                 }
                 Spacer(Modifier.height(10.dp))
             }
             PulseButton("Bluetooth lab (developer)", onClick = { ui.labOpen = true }, filled = false)
             Spacer(Modifier.height(10.dp))
-            Text("Pick your band here once. After that, Pulse finds it and syncs by itself every time you open the app.", style = PulseType.Caption)
+            Text("Developer tools for scanning a band and testing what it sends.", style = PulseType.Caption)
         }
         Spacer(Modifier.height(28.dp))
 
@@ -165,6 +177,21 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
             style = PulseType.Caption,
         )
         Spacer(Modifier.height(48.dp))
+    }
+
+    if (confirmRemove) {
+        AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("Remove ${device.name}?") },
+            text = { Text("Pulse will stop syncing with this band. Keep the heart-rate and step history already on your phone, or delete it.") },
+            confirmButton = {
+                Row {
+                    TextButton(onClick = { confirmRemove = false; ui.removeDeviceAction?.invoke(true) }) { Text("Delete data too") }
+                    TextButton(onClick = { confirmRemove = false; ui.removeDeviceAction?.invoke(false) }) { Text("Keep data") }
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("Cancel") } },
+        )
     }
 }
 

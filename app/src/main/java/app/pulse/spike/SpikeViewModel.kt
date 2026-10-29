@@ -11,6 +11,7 @@ import app.pulse.spike.ble.ScanItem
 import app.pulse.spike.ble.hasBlePermissions
 import app.pulse.spike.data.PulseDb
 import app.pulse.spike.ui.PulseUiState
+import app.pulse.spike.ui.components.PulseTab
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -43,6 +44,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     init {
         ui.bandSaved = db.getMeta("band_address") != null
         ui.syncAction = { syncNow() }
+        ui.removeDeviceAction = { deleteData -> removeDevice(deleteData) }
     }
 
     /** Connects to the saved band in the background and copies its readings onto the phone. */
@@ -54,6 +56,26 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         viewModelScope.launch { bandSync.run(address, db.getMeta("band_name")) }
+    }
+
+    /** Saves a band picked in the Add device screen and starts syncing it. */
+    fun addDevice(item: ScanItem) {
+        scanner.stop()
+        db.setMeta("band_address", item.address)
+        db.setMeta("band_name", item.name ?: "Your band")
+        ui.bandSaved = true
+        ui.syncStatus = ""
+        ui.dataVersion += 1
+        ui.tab = PulseTab.Home
+        syncNow()
+    }
+
+    /** Forgets the saved band, so another one can be added. */
+    fun removeDevice(deleteData: Boolean) {
+        db.removeDevice(deleteData)
+        ui.bandSaved = false
+        ui.syncStatus = ""
+        ui.dataVersion += 1
     }
 
     /** Opens the lab connection. Also remembers this band, so the app can sync it automatically next time. */

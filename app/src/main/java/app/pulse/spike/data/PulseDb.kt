@@ -104,6 +104,19 @@ class PulseDb(context: Context) : SQLiteOpenHelper(context, "pulse.db", null, 1)
         }
     }
 
+    /** Forgets the saved band. With [deleteData] it also erases the heart-rate and step history. */
+    @Synchronized
+    fun removeDevice(deleteData: Boolean) {
+        val db = writableDatabase
+        for (key in listOf("band_address", "band_name", "battery", "last_sync")) {
+            db.delete("meta", "key = ?", arrayOf(key))
+        }
+        if (deleteData) {
+            db.delete("hr", null, null)
+            db.delete("steps", null, null)
+        }
+    }
+
     @Synchronized
     fun setMeta(key: String, value: String) {
         val values = ContentValues().apply {

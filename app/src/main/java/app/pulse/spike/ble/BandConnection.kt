@@ -200,6 +200,9 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
         write(send, qcPacket(command, data), noResponse = !send.canWrite)
     }
 
+    /** True if the band has the 6e40fff0 service, i.e. speaks the same language as the G69. */
+    fun supportsQc(): Boolean = _services.value.any { it.uuid == QC_SERVICE }
+
     fun requestBattery() = sendQc(0x03)
 
     /** WRITES the band's clock: sets it to the phone's current local time (the command the public docs call "set time"). */

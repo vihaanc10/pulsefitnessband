@@ -44,10 +44,13 @@ fun PulseApp(vm: SpikeViewModel) {
     // Like QWatch Pro: open the app and it fetches the latest from the band.
     LaunchedEffect(Unit) { vm.syncNow() }
 
-    BackHandler(enabled = ui.labOpen && connection == null) { ui.labOpen = false }
-    BackHandler(enabled = !ui.labOpen && ui.tab != PulseTab.Home) { ui.tab = PulseTab.Home }
+    BackHandler(enabled = ui.addDeviceOpen) { ui.addDeviceOpen = false }
+    BackHandler(enabled = ui.labOpen && connection == null && !ui.addDeviceOpen) { ui.labOpen = false }
+    BackHandler(enabled = !ui.labOpen && !ui.addDeviceOpen && ui.tab != PulseTab.Home) { ui.tab = PulseTab.Home }
 
-    if (ui.labOpen) {
+    if (ui.addDeviceOpen) {
+        AddDeviceScreen(vm, onClose = { ui.addDeviceOpen = false })
+    } else if (ui.labOpen) {
         val current = connection
         if (current == null) {
             ScannerScreen(vm, onExit = { ui.labOpen = false })

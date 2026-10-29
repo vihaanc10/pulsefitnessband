@@ -31,6 +31,11 @@ class PulseUiState {
     /** True once a band has been picked in the Bluetooth lab, so the app knows which one to sync. */
     var bandSaved by mutableStateOf(false)
 
+    var addDeviceOpen by mutableStateOf(false)
+
+    /** Set by the ViewModel: forgets the saved band (true = also delete its data). */
+    var removeDeviceAction: ((Boolean) -> Unit)? = null
+
     /** Set by the ViewModel: starts a sync. */
     var syncAction: (() -> Unit)? = null
     var coachQuestion by mutableStateOf<Int?>(null)
