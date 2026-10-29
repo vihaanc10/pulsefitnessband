@@ -1,5 +1,20 @@
 # Pulse
 
+## Install it on your phone (no computer needed)
+
+1. On your phone, open this repository's **Releases** page on GitHub and tap **Pulse (latest)**.
+2. Tap **Pulse.apk** to download it, then open the file.
+3. Android will ask to allow installs from your browser or Files app. Tap **Settings**, switch **Allow from this source** on, go back and tap **Install**.
+4. Open **Pulse**, go to **Profile**, tap **Add device**, allow Bluetooth when asked, and tap your band in the list.
+
+After that, every time you open Pulse it syncs your band by itself. To use a different band, go to Profile, tap **Remove device**, then **Add device**.
+
+Notes:
+- The Releases page is rebuilt automatically a few minutes after each code change (see `.github/workflows/build-apk.yml`). If it's empty, open the **Actions** tab and check the build.
+- This repository is private, so a friend must be added first (GitHub: Settings > Collaborators), or you can send them `Pulse.apk` directly by Drive, WhatsApp or email.
+- Pulse reads bands that speak the same Bluetooth language as the LIGE G69 (the Colmi-ring family, service `6e40fff0-...`). Other bands, including the HK50, may use a different language. Pulse will say so, and we would then repeat the Phase 0 steps for that band.
+
+
 ## The app (design phase)
 
 Four tabs: **Home** (recovery, sleep, strain, heart rate), **Health** (7-day / 30-day trends), **Coach** and **Profile**. It is dark, minimal and drawn with Jetpack Compose only (no extra libraries; charts and icons are hand-drawn).
