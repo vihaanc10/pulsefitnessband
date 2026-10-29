@@ -23,7 +23,7 @@ The owner asked for `vihaanc10/pulsefitnessband` to be public. The cloud session
 
 ## New bands the owner wants
 - **Add device / Remove device**: done in the app (Profile). The owner wants it simple: find the Bluetooth, connect, then tell me what it has. No developer mode (the Bluetooth lab already needs none; developer mode was only for installing from the PC).
-- **HK50 band** (owner is getting one, a friend too): when it arrives, use Add device, open the Bluetooth lab, connect, send me the Services list (or the exported CSV). Pulse already says "speaks a different Bluetooth language" for bands without service `6e40fff0-...`.
+- **HK50 or HK51 band** (owner is unsure of the exact model; getting one, a friend too; figure it out when it arrives): when it arrives, use Add device, open the Bluetooth lab, connect, send me the Services list (or the exported CSV). Pulse already says "speaks a different Bluetooth language" for bands without service `6e40fff0-...`.
 - **Xiaomi Mi Band 6 and 7**: owner wants these supported too. Be honest that these use a different, authenticated protocol (from memory: a per-device secret key is needed, which Gadgetbridge users get from the Xiaomi / Zepp account; unverified). Research when we get to it. Don't promise it is easy.
 - Longer term: an adapter layer per band family (PRD section 6, P2).
 
