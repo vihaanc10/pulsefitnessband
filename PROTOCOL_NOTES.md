@@ -50,11 +50,12 @@ One row per thing I did. "Bytes written" = phone to band. "Bytes received" = ban
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Connected with Pulse, tapped "Subscribe to all notifications" | `2A05`, `6e400003`, `de5bf729`, `fea1`, `fea2` | `01 00` to the notification switch (0x2902) of each NOTIFY one, `02 00` for the INDICATE ones (`2A05`, `fea2`) | nothing | all five subscriptions succeeded (status=0) | yes | log screenshots |
 | 2 | Waited / pressed band button / walked (exact trigger unknown) | `6e400003` | nothing | one notification: `73 01 00 00 00 00 00 00 00 00 00 00 00 00 00 74` (16 bytes) | Last byte `74` = sum of the first 15 bytes (`73+01`), so this looks like a 16-byte packet with a checksum. Meaning of `73 01` unknown. | guess | log screenshots |
+| 3 | Pulse test button "ask the band for its battery" (sent twice) | `6e400002` write, reply on `6e400003` | `03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03` | `03 5B 00 00 00 00 00 00 00 00 00 00 00 00 00 5E` (identical both times, about 0.1 s after the write) | The band answers a Colmi-style battery request. Reply echoes command `03`, checksum OK (`03+5B=5E`). Byte 1 = `5B` = 91, which fits a battery percentage (byte meaning is from the public docs, not yet cross-checked against a second reading). | yes for the command and checksum, guess for "91% battery" | log screenshot, 2026-10-29 03:31 |
 
 Actions to capture (PRD section 8, steps 3 and 4):
 
 - [ ] Connect / pair for the first time
-- [ ] Read battery level
+- [x] Read battery level (command `03`, works without any handshake)
 - [ ] Sync heart-rate log
 - [ ] Sync SpO2 log
 - [ ] Sync sleep
@@ -70,7 +71,7 @@ Actions to capture (PRD section 8, steps 3 and 4):
 
 | Question | Answer | Evidence |
 | --- | --- | --- |
-| Does the band need a pairing / handshake before it answers? | partly answered: it accepts a plain connection and lets us subscribe with no handshake. Not yet known whether commands need one. | row 1 above |
+| Does the band need a pairing / handshake before it answers? | No handshake needed for the battery command: plain connect, subscribe, write, get a reply. Other commands untested. | rows 1 and 3 above |
 | Smallest heart-rate logging interval? | unknown | |
 | Does real-time heart-rate streaming work? | unknown | |
 | Any beat-to-beat (RR) data, i.e. could we get HRV? | unknown | |
