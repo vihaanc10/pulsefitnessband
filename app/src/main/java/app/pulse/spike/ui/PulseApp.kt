@@ -12,13 +12,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pulse.spike.SpikeViewModel
-import app.pulse.spike.data.EmptyHealthRepository
+import app.pulse.spike.data.RealHealthRepository
 import app.pulse.spike.data.SampleHealthRepository
 import app.pulse.spike.ui.components.BottomNavigation
 import app.pulse.spike.ui.components.PulseTab
@@ -27,21 +27,22 @@ import app.pulse.spike.ui.screens.HealthScreen
 import app.pulse.spike.ui.screens.HomeScreen
 import app.pulse.spike.ui.screens.ProfileScreen
 import app.pulse.spike.ui.theme.PulseColors
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
  * The whole app: four tabs with a bottom bar, plus the Bluetooth lab (the Phase 0 tools),
- * which opens from the Profile tab.
+ * which opens from the Profile tab. When the app opens it syncs the saved band by itself.
  */
 @Composable
 fun PulseApp(vm: SpikeViewModel) {
     val ui = vm.ui
     val connection by vm.connection.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    val emptyRepo = remember { EmptyHealthRepository() }
     val sampleRepo = remember { SampleHealthRepository() }
-    val repo = if (ui.useSample) sampleRepo else emptyRepo
+    // A new repository object each time the sync saves data, so every screen re-reads it.
+    val realRepo = remember(ui.dataVersion) { RealHealthRepository(vm.db) }
+    val repo = if (ui.useSample) sampleRepo else realRepo
+
+    // Like QWatch Pro: open the app and it fetches the latest from the band.
+    LaunchedEffect(Unit) { vm.syncNow() }
 
     BackHandler(enabled = ui.labOpen && connection == null) { ui.labOpen = false }
     BackHandler(enabled = !ui.labOpen && ui.tab != PulseTab.Home) { ui.tab = PulseTab.Home }
@@ -65,16 +66,7 @@ fun PulseApp(vm: SpikeViewModel) {
                         PulseTab.Home -> HomeScreen(ui, repo)
                         PulseTab.Health -> HealthScreen(ui, repo)
                         PulseTab.Coach -> CoachScreen(ui, repo)
-                        PulseTab.Profile -> ProfileScreen(ui, repo, onSync = {
-                            if (!ui.syncing) {
-                                scope.launch {
-                                    ui.syncing = true
-                                    delay(1500)
-                                    ui.syncing = false
-                                    ui.lastSync = "Just now"
-                                }
-                            }
-                        })
+                        PulseTab.Profile -> ProfileScreen(ui, repo, onSync = { vm.syncNow() })
                     }
                 }
             }

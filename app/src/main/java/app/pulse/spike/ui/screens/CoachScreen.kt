@@ -27,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,9 +75,23 @@ fun CoachScreen(ui: PulseUiState, repo: HealthRepository) {
                 message = "Recommendations are built from your recovery, sleep and strain once your band has synced.",
                 onPreview = { ui.useSample = true },
                 onOpenLab = { ui.labOpen = true },
+                status = ui.syncStatus,
+                onSync = if (ui.bandSaved && !ui.useSample) ui.syncAction else null,
             )
         } else {
-            CoachContent(ui, repo.day(LocalDate.now()))
+            val day = remember(repo) { repo.day(LocalDate.now()) }
+            if (day.hasScores) {
+                CoachContent(ui, day)
+            } else {
+                PulseCard {
+                    Label("Coming next")
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Your coach needs sleep and recovery data. Heart rate and steps are arriving; sleep is the next thing to work out.",
+                        style = PulseType.Body,
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(48.dp))
     }

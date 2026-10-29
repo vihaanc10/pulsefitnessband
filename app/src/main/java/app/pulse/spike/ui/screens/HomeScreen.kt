@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -68,6 +69,7 @@ fun HomeScreen(ui: PulseUiState, repo: HealthRepository) {
             initial = repo.user.name.take(1).uppercase(),
             device = repo.device,
             isSample = ui.useSample,
+            syncing = ui.syncing,
             canGoNext = date < today,
             onPrev = { ui.epochDay -= 1 },
             onNext = { if (date < today) ui.epochDay += 1 },
@@ -80,9 +82,12 @@ fun HomeScreen(ui: PulseUiState, repo: HealthRepository) {
                 message = "Your recovery, sleep, strain and heart rate will appear here once the band has synced.",
                 onPreview = { ui.useSample = true },
                 onOpenLab = { ui.labOpen = true },
+                status = ui.syncStatus,
+                onSync = if (ui.bandSaved && !ui.useSample) ui.syncAction else null,
             )
         } else {
-            HomeContent(repo.day(date))
+            val day = remember(date, repo) { repo.day(date) }
+            HomeContent(day)
         }
         Spacer(Modifier.height(48.dp))
     }
@@ -90,71 +95,93 @@ fun HomeScreen(ui: PulseUiState, repo: HealthRepository) {
 
 @Composable
 private fun HomeContent(day: DayData) {
-    // Recovery
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        RecoveryRing(day.recovery, Modifier.size(290.dp))
-    }
-    Spacer(Modifier.height(24.dp))
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Label(recoveryLabel(day.recovery), color = recoveryColor(day.recovery))
-        Spacer(Modifier.height(8.dp))
-        Text(
-            recoverySummary(day.recovery), style = PulseType.Body, textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp),
+    if (day.hasScores) {
+        // Recovery
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            RecoveryRing(day.recovery, Modifier.size(290.dp))
+        }
+        Spacer(Modifier.height(24.dp))
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Label(recoveryLabel(day.recovery), color = recoveryColor(day.recovery))
+            Spacer(Modifier.height(8.dp))
+            Text(
+                recoverySummary(day.recovery), style = PulseType.Body, textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp),
+            )
+        }
+        Spacer(Modifier.height(32.dp))
+        StatStrip(
+            listOf(
+                Stat("Resting HR", "${day.restingHr}", "bpm"),
+                Stat("HRV", day.hrvMs?.toString() ?: "--", "ms"),
+                Stat("Resp. rate", day.respiratoryRate?.let { String.format(Locale.US, "%.1f", it) } ?: "--", "rpm"),
+            ),
         )
-    }
-    Spacer(Modifier.height(32.dp))
-    StatStrip(
-        listOf(
-            Stat("Resting HR", "${day.restingHr}", "bpm"),
-            Stat("HRV", day.hrvMs?.toString() ?: "--", "ms"),
-            Stat("Resp. rate", day.respiratoryRate?.let { String.format(Locale.US, "%.1f", it) } ?: "--", "rpm"),
-        ),
-    )
 
-    // Sleep
-    Spacer(Modifier.height(72.dp))
-    Label("Sleep")
-    Spacer(Modifier.height(24.dp))
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        SleepRing(day.sleepPerformance, Modifier.size(250.dp), subtitle = formatDuration(day.sleepMinutes))
-    }
-    Spacer(Modifier.height(28.dp))
-    StatStrip(
-        listOf(
-            Stat("Slept", formatDuration(day.sleepMinutes)),
-            Stat("Goal", formatDuration(day.sleepGoalMinutes)),
-            Stat("Efficiency", "${day.sleepEfficiency}", "%"),
-        ),
-    )
-    Spacer(Modifier.height(16.dp))
-    PulseCard {
-        Label("Sleep stages")
-        Spacer(Modifier.height(18.dp))
-        SleepStagesBar(day.stages)
-    }
+        // Sleep
+        Spacer(Modifier.height(72.dp))
+        Label("Sleep")
+        Spacer(Modifier.height(24.dp))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            SleepRing(day.sleepPerformance, Modifier.size(250.dp), subtitle = formatDuration(day.sleepMinutes))
+        }
+        Spacer(Modifier.height(28.dp))
+        StatStrip(
+            listOf(
+                Stat("Slept", formatDuration(day.sleepMinutes)),
+                Stat("Goal", formatDuration(day.sleepGoalMinutes)),
+                Stat("Efficiency", "${day.sleepEfficiency}", "%"),
+            ),
+        )
+        Spacer(Modifier.height(16.dp))
+        PulseCard {
+            Label("Sleep stages")
+            Spacer(Modifier.height(18.dp))
+            SleepStagesBar(day.stages)
+        }
 
-    // Strain
-    Spacer(Modifier.height(72.dp))
-    Label("Strain")
-    Spacer(Modifier.height(24.dp))
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        StrainRing(day.strain, Modifier.size(220.dp))
+        // Strain
+        Spacer(Modifier.height(72.dp))
+        Label("Strain")
+        Spacer(Modifier.height(24.dp))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            StrainRing(day.strain, Modifier.size(220.dp))
+        }
+        Spacer(Modifier.height(14.dp))
+        val target = strainTarget(day.recovery)
+        Text(
+            "Target ${formatStrain(target.start)} to ${formatStrain(target.endInclusive)} for this recovery",
+            style = PulseType.Caption, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(28.dp))
+        StatStrip(
+            listOf(
+                Stat("Calories", formatThousands(day.calories), "kcal"),
+                Stat("Steps", formatThousands(day.steps)),
+                Stat("Avg HR", "${day.avgHr}", "bpm"),
+            ),
+        )
+
+    } else {
+        Label("Today so far")
+        Spacer(Modifier.height(16.dp))
+        StatStrip(
+            listOf(
+                Stat("Steps", formatThousands(day.steps)),
+                Stat("Calories", formatThousands(day.calories)),
+                Stat("Avg HR", if (day.avgHr > 0) "${day.avgHr}" else "--", "bpm"),
+            ),
+        )
+        Spacer(Modifier.height(16.dp))
+        PulseCard {
+            Label("Coming next")
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Sleep, recovery and strain scores need the band's sleep data. We are still working out how to read it.",
+                style = PulseType.Body,
+            )
+        }
     }
-    Spacer(Modifier.height(14.dp))
-    val target = strainTarget(day.recovery)
-    Text(
-        "Target ${formatStrain(target.start)} to ${formatStrain(target.endInclusive)} for this recovery",
-        style = PulseType.Caption, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
-    )
-    Spacer(Modifier.height(28.dp))
-    StatStrip(
-        listOf(
-            Stat("Calories", formatThousands(day.calories), "kcal"),
-            Stat("Steps", formatThousands(day.steps)),
-            Stat("Avg HR", "${day.avgHr}", "bpm"),
-        ),
-    )
 
     // Heart rate
     Spacer(Modifier.height(72.dp))

@@ -1,6 +1,7 @@
 package app.pulse.spike.data
 
 import java.time.LocalDate
+import java.time.Duration
 import java.time.LocalTime
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -87,5 +88,61 @@ class SampleHealthRepository : HealthRepository {
             minute += 5
         }
         return points
+    }
+}
+
+/** Real data: whatever the band has delivered and the sync has saved in [PulseDb]. */
+class RealHealthRepository(private val db: PulseDb) : HealthRepository {
+    override val hasData: Boolean get() = db.hasAnyData()
+
+    override val device: DeviceStatus
+        get() {
+            val battery = db.getMeta("battery")?.toIntOrNull()
+            return DeviceStatus(
+                name = db.getMeta("band_name") ?: "Your band",
+                connected = battery != null,
+                batteryPercent = battery ?: 0,
+                lastSync = lastSyncText(db.getMeta("last_sync")?.toLongOrNull()),
+            )
+        }
+
+    override val user = UserProfile("Vihaan", heightCm = 175, weightKg = 70)
+
+    override fun day(date: LocalDate): DayData {
+        val points = db.heartRate(date)
+        val bpms = points.map { it.bpm }
+        val (steps, calories, _) = db.stepTotals(date)
+
+        val zones = IntArray(5)
+        for (bpm in bpms) {
+            val fraction = bpm / 190.0
+            if (fraction >= 0.5) zones[min(4, ((fraction - 0.5) / 0.1).toInt())] += 5
+        }
+        return DayData(
+            date = date, recovery = 0, restingHr = restingHeartRate(bpms), hrvMs = null, respiratoryRate = null,
+            sleepPerformance = 0, sleepMinutes = 0, sleepGoalMinutes = 480, sleepEfficiency = 0, sleepConsistency = 0,
+            stages = SleepStages(0, 0, 0), strain = 0.0, calories = calories, steps = steps,
+            avgHr = if (bpms.isEmpty()) 0 else bpms.average().roundToInt(),
+            maxHr = bpms.maxOrNull() ?: 0, currentHr = bpms.lastOrNull() ?: 0,
+            heartRate = points, zoneMinutes = zones.toList(), hasScores = false,
+        )
+    }
+
+    /** The lowest average over 6 readings in a row (about 30 minutes), so one odd reading can't skew it. */
+    private fun restingHeartRate(bpms: List<Int>): Int {
+        if (bpms.isEmpty()) return 0
+        if (bpms.size < 6) return bpms.min()
+        return (0..bpms.size - 6).minOf { i -> bpms.subList(i, i + 6).average() }.roundToInt()
+    }
+
+    private fun lastSyncText(millis: Long?): String {
+        if (millis == null) return "Never synced"
+        val minutes = Duration.ofMillis(System.currentTimeMillis() - millis).toMinutes()
+        return when {
+            minutes < 1 -> "Just now"
+            minutes < 60 -> "$minutes min ago"
+            minutes < 24 * 60 -> "${minutes / 60} h ago"
+            else -> "Over a day ago"
+        }
     }
 }

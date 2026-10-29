@@ -22,7 +22,17 @@ class PulseUiState {
     var healthRange by mutableStateOf(7)
     var metricUnits by mutableStateOf(true)
     var syncing by mutableStateOf(false)
+    var syncStatus by mutableStateOf("")
     var lastSync by mutableStateOf<String?>(null)
+
+    /** Goes up by one whenever new band data has been saved, so screens re-read it. */
+    var dataVersion by mutableStateOf(0)
+
+    /** True once a band has been picked in the Bluetooth lab, so the app knows which one to sync. */
+    var bandSaved by mutableStateOf(false)
+
+    /** Set by the ViewModel: starts a sync. */
+    var syncAction: (() -> Unit)? = null
     var coachQuestion by mutableStateOf<Int?>(null)
 
     val goalDone = mutableStateMapOf<String, Boolean>()

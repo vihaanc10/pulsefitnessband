@@ -99,13 +99,17 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
             Spacer(Modifier.height(16.dp))
             Text("Last sync: ${ui.lastSync ?: device.lastSync}", style = PulseType.Caption)
             Spacer(Modifier.height(18.dp))
-            if (repo.hasData) {
+            if (ui.bandSaved && !ui.useSample) {
                 PulseButton(if (ui.syncing) "Syncing..." else "Sync now", onClick = onSync, filled = !ui.syncing)
+                if (ui.syncStatus.isNotBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(ui.syncStatus, style = PulseType.Caption)
+                }
                 Spacer(Modifier.height(10.dp))
             }
             PulseButton("Bluetooth lab (developer)", onClick = { ui.labOpen = true }, filled = false)
             Spacer(Modifier.height(10.dp))
-            Text("Scan for the band and inspect what it sends. Real syncing is built from what we learn here.", style = PulseType.Caption)
+            Text("Pick your band here once. After that, Pulse finds it and syncs by itself every time you open the app.", style = PulseType.Caption)
         }
         Spacer(Modifier.height(28.dp))
 

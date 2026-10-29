@@ -188,6 +188,8 @@ fun EmptyState(
     onPreview: () -> Unit,
     onOpenLab: () -> Unit,
     modifier: Modifier = Modifier,
+    status: String? = null,
+    onSync: (() -> Unit)? = null,
 ) {
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         ProgressRing(progress = 0f, color = PulseColors.Green, modifier = Modifier.size(200.dp)) {
@@ -199,9 +201,14 @@ fun EmptyState(
         Text(title, style = PulseType.Headline.copy(fontSize = 24.sp), textAlign = TextAlign.Center)
         Spacer(Modifier.height(10.dp))
         Text(message, style = PulseType.Body, textAlign = TextAlign.Center)
+        if (!status.isNullOrBlank()) {
+            Spacer(Modifier.height(14.dp))
+            Text(status, style = PulseType.Caption.copy(color = PulseColors.Green), textAlign = TextAlign.Center)
+        }
         Spacer(Modifier.height(28.dp))
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            PulseButton("Preview with sample data", onPreview)
+            if (onSync != null) PulseButton("Sync now", onSync)
+            PulseButton("Preview with sample data", onPreview, filled = onSync == null)
             PulseButton("Open Bluetooth lab", onOpenLab, filled = false)
         }
     }

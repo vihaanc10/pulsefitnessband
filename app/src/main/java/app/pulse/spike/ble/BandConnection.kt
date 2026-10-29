@@ -63,7 +63,10 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
     val subscribed: StateFlow<Set<String>> = _subscribed
 
     private var gatt: BluetoothGatt? = null
-    private val decoder = QcDecoder(log)
+    /** Whoever wants the decoded numbers (the sync) sets this. */
+    @Volatile
+    var listener: QcListener? = null
+    private val decoder = QcDecoder(log) { listener }
     private val handler = Handler(Looper.getMainLooper())
 
     // ---- one-thing-at-a-time queue -------------------------------------------------------------

@@ -28,6 +28,8 @@ data class DayData(
     val currentHr: Int,
     val heartRate: List<HrPoint>,
     val zoneMinutes: List<Int>, // 5 zones
+    /** False for real band data until sleep, recovery and strain can be worked out. Screens then show only what exists. */
+    val hasScores: Boolean = true,
 )
 
 data class DeviceStatus(

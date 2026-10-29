@@ -41,6 +41,7 @@ fun DashboardHeader(
     initial: String,
     device: DeviceStatus,
     isSample: Boolean,
+    syncing: Boolean,
     canGoNext: Boolean,
     onPrev: () -> Unit,
     onNext: () -> Unit,
@@ -61,7 +62,7 @@ fun DashboardHeader(
                 Pill("Sample data", color = PulseColors.Yellow)
             }
             Spacer(Modifier.weight(1f))
-            DeviceChip(device)
+            DeviceChip(device, syncing)
         }
         Spacer(Modifier.height(32.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -97,7 +98,7 @@ private fun ArrowButton(glyph: String, enabled: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DeviceChip(device: DeviceStatus) {
+private fun DeviceChip(device: DeviceStatus, syncing: Boolean) {
     val shape = RoundedCornerShape(50)
     Row(
         Modifier.clip(shape).border(1.dp, PulseColors.Border, shape).padding(horizontal = 10.dp, vertical = 6.dp),
@@ -105,11 +106,15 @@ private fun DeviceChip(device: DeviceStatus) {
     ) {
         Box(
             Modifier.size(6.dp).clip(CircleShape)
-                .background(if (device.connected) PulseColors.Green else PulseColors.TextTertiary),
+                .background(if (device.connected || syncing) PulseColors.Green else PulseColors.TextTertiary),
         )
         Spacer(Modifier.width(7.dp))
         Text(
-            if (device.connected) "${device.batteryPercent}%" else "Not connected",
+            when {
+                syncing -> "Syncing..."
+                device.connected -> "${device.batteryPercent}%"
+                else -> "Not connected"
+            },
             style = PulseType.Caption.copy(fontSize = 11.sp), color = PulseColors.TextPrimary,
         )
     }

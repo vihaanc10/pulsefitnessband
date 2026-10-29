@@ -4,6 +4,7 @@
 
 Four tabs: **Home** (recovery, sleep, strain, heart rate), **Health** (7-day / 30-day trends), **Coach** and **Profile**. It is dark, minimal and drawn with Jetpack Compose only (no extra libraries; charts and icons are hand-drawn).
 
+- **Auto-sync (new, untested).** Pick your band once in the Bluetooth lab (tap it in the scan list). Pulse remembers it, and every time you open the app it connects in the background (about 30 seconds), sets the band's clock, reads battery, heart rate and steps for today and yesterday, and saves them in a database on the phone (`data/PulseDb.kt`). Home then shows real heart rate and steps. Sleep, recovery and strain still show "coming next" because the sleep command isn't decoded yet.
 - **It starts empty.** Until the band has delivered real data, every screen says "Waiting for your band". Nothing on screen is invented.
 - **Sample data** is a clearly marked preview: Profile > Data > "Show sample data" (or the button on the empty screens). Numbers come from `data/Repositories.kt` (`SampleHealthRepository`).
 - All screens read from one interface, `HealthRepository` (`data/HealthModels.kt`). Real band data will plug in there later.
