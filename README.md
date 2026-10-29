@@ -1,4 +1,16 @@
-# Pulse: Phase 0 (band discovery spike)
+# Pulse
+
+## The app (design phase)
+
+Four tabs: **Home** (recovery, sleep, strain, heart rate), **Health** (7-day / 30-day trends), **Coach** and **Profile**. It is dark, minimal and drawn with Jetpack Compose only (no extra libraries; charts and icons are hand-drawn).
+
+- **It starts empty.** Until the band has delivered real data, every screen says "Waiting for your band". Nothing on screen is invented.
+- **Sample data** is a clearly marked preview: Profile > Data > "Show sample data" (or the button on the empty screens). Numbers come from `data/Repositories.kt` (`SampleHealthRepository`).
+- All screens read from one interface, `HealthRepository` (`data/HealthModels.kt`). Real band data will plug in there later.
+- **Bluetooth lab** (the Phase 0 tools below) opens from Profile > Fitness band.
+- The band reports deep and light sleep, so there is no REM in the app. HRV and respiratory rate show "--" until we know the band can supply them.
+
+# Phase 0 (band discovery spike)
 
 A small throwaway Android app for finding out what the LIGE band sends over Bluetooth LE. It is **not** the real Pulse app yet (see `PRD.md`, section 8).
 

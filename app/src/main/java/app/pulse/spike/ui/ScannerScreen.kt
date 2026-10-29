@@ -50,7 +50,7 @@ private fun neededPermissions(): Array<String> =
     }
 
 @Composable
-fun ScannerScreen(vm: SpikeViewModel) {
+fun ScannerScreen(vm: SpikeViewModel, onExit: () -> Unit = {}) {
     val context = LocalContext.current
     val devices by vm.scanner.devices.collectAsStateWithLifecycle()
     val scanning by vm.scanner.scanning.collectAsStateWithLifecycle()
@@ -83,7 +83,8 @@ fun ScannerScreen(vm: SpikeViewModel) {
         ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 16.dp)) {
-                    Text("Pulse Phase 0", style = MaterialTheme.typography.headlineMedium)
+                    TextButton(onClick = onExit) { Text("\u2039 Back to Pulse") }
+                    Text("Bluetooth lab", style = MaterialTheme.typography.headlineMedium)
                     Text("Step 1: find your band. Tap a device to connect to it.")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (scanning) {

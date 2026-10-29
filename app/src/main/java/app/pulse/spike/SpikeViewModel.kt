@@ -6,6 +6,7 @@ import app.pulse.spike.ble.BandConnection
 import app.pulse.spike.ble.BleScanner
 import app.pulse.spike.ble.MessageLog
 import app.pulse.spike.ble.ScanItem
+import app.pulse.spike.ui.PulseUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File
@@ -14,6 +15,7 @@ import java.io.File
 class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     val log = MessageLog(File(app.filesDir, "logs"))
     val scanner = BleScanner(app)
+    val ui = PulseUiState()
 
     private val _connection = MutableStateFlow<BandConnection?>(null)
     val connection: StateFlow<BandConnection?> = _connection
