@@ -13,6 +13,8 @@ import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 
 /**
@@ -59,6 +61,7 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
     val subscribed: StateFlow<Set<String>> = _subscribed
 
     private var gatt: BluetoothGatt? = null
+    private val decoder = QcDecoder(log)
     private val handler = Handler(Looper.getMainLooper())
 
     // ---- one-thing-at-a-time queue -------------------------------------------------------------
@@ -177,20 +180,31 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
     }
 
     /**
-     * One-tap test: listen on the reply slot, then send the "battery" request that the public
-     * Colmi docs describe (command 0x03). It only asks a question; it changes nothing on the band.
+     * Sends one 16-byte request in the format the public Colmi docs describe, after making sure
+     * we are listening on the reply slot. These requests only ask questions; they change nothing.
      */
-    fun requestBattery() {
+    private fun sendQc(command: Int, data: ByteArray = ByteArray(0)) {
         val chars = _services.value.flatMap { it.characteristics }
         val send = chars.firstOrNull { it.serviceUuid == QC_SERVICE && it.uuid == QC_WRITE }
         val reply = chars.firstOrNull { it.serviceUuid == QC_SERVICE && it.uuid == QC_NOTIFY }
         if (send == null || reply == null) {
-            log.info("error", "This band has no 6e40fff0 service, so the battery test can't run")
+            log.info("error", "This band has no 6e40fff0 service, so this test can't run")
             return
         }
         if (reply.key !in _subscribed.value) setSubscribed(reply, true)
-        write(send, qcPacket(0x03), noResponse = !send.canWrite)
+        write(send, qcPacket(command, data), noResponse = !send.canWrite)
     }
+
+    fun requestBattery() = sendQc(0x03)
+
+    /** Heart-rate log for today. The request carries midnight (our local time) as a Unix timestamp. */
+    fun requestHeartRateLog() {
+        val midnight = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toEpochSecond()
+        sendQc(0x15, ByteArray(4) { ((midnight shr (8 * it)) and 0xFF).toByte() })
+    }
+
+    /** Steps for today (day offset 0). The other four bytes are fixed values from the public docs. */
+    fun requestSteps() = sendQc(0x43, byteArrayOf(0, 0x0F, 0, 0x5F, 0x01))
 
     private fun find(info: CharInfo): BluetoothGattCharacteristic? {
         val ch = gatt?.getService(info.serviceUuid)?.getCharacteristic(info.uuid)
@@ -254,10 +268,13 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
 
         override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray) {
             log.add("RX", "notify", c.uuid.toString(), value)
+            if (c.uuid == QC_NOTIFY) decoder.onPacket(value)
         }
 
         override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic) {
-            log.add("RX", "notify", c.uuid.toString(), c.value ?: ByteArray(0))
+            val value = c.value ?: ByteArray(0)
+            log.add("RX", "notify", c.uuid.toString(), value)
+            if (c.uuid == QC_NOTIFY) decoder.onPacket(value)
         }
 
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) {
