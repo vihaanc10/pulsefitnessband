@@ -74,6 +74,7 @@ Actions to capture (PRD section 8, steps 3 and 4):
 | --- | --- | --- |
 | Does the band need a pairing / handshake before it answers? | No handshake needed for the battery command: plain connect, subscribe, write, get a reply. Other commands untested. | rows 1 and 3 above |
 | Smallest heart-rate logging interval? | unknown | |
+| Heart-rate logging on, and how often? | ON, every 5 minutes (read from the band, 2026-10-30). Not changed by us. | log screenshot |
 | Does real-time heart-rate streaming work? | unknown | |
 | Any beat-to-beat (RR) data, i.e. could we get HRV? | unknown | |
 | How many days of data does the band store offline? | unknown | |
@@ -90,6 +91,7 @@ Actions to capture (PRD section 8, steps 3 and 4):
 - `0x03` = battery request and reply (the only opcode the main README gives). Other features are named (set time, heart-rate log and its interval, real-time heart rate and SpO2, steps, sleep) but their opcodes are in source files we have not read yet.
 - That ring's command-line tool also has `reboot` and raw-packet commands, so treat unknown writes with care.
 - Heart-rate logging setting (command `16`, from the public docs, unverified): read = `16 01 ...`; write = `16 02 <1 = on, 2 = off> <interval in minutes, 1-255>`; reply has byte 2 = 1 (on) / 2 (off) and byte 3 = interval. Example reply in the docs: `16 01 01 3C ...` = on, every 60 minutes.
+- Set clock (command `01`, from the public docs, unverified): 7 data bytes, each BCD (two decimal digits per byte): year-2000, month, day, hour, minute, second, language (1 = English). The public tool sends **UTC**; Pulse sends the phone's **local** time. If the band's clock differs from what we assume, "today's log" requests can come back empty. Pulse's Tests tab has two ways to ask for a day: way A = true Unix time of local midnight; way B = local midnight treated as if it were UTC.
 - One write-up says the purpose of the third (`de5bf728`) service is unknown.
 - Gadgetbridge supports QRing-based Colmi rings; we could not check it for this band (site blocked in the cloud session). Next test is in Pulse: "Test: ask the band for its battery".
 

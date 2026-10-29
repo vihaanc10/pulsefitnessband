@@ -14,7 +14,9 @@ import android.os.Looper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.UUID
 
 /**
@@ -197,6 +199,17 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
 
     fun requestBattery() = sendQc(0x03)
 
+    /** WRITES the band's clock: sets it to the phone's current local time (the command the public docs call "set time"). */
+    fun setBandClock() {
+        val now = LocalDateTime.now()
+        fun bcd(v: Int) = (((v / 10) shl 4) or (v % 10)).toByte()
+        log.info("clock", "Setting the band's clock to $now")
+        sendQc(
+            0x01,
+            byteArrayOf(bcd(now.year % 100), bcd(now.monthValue), bcd(now.dayOfMonth), bcd(now.hour), bcd(now.minute), bcd(now.second), 1),
+        )
+    }
+
     /** Read-only: asks whether automatic heart-rate logging is on, and how often. */
     fun requestHeartRateSettings() = sendQc(0x16, byteArrayOf(1))
 
@@ -204,8 +217,11 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
     fun enableHeartRateLogging(minutes: Int) = sendQc(0x16, byteArrayOf(2, 1, minutes.toByte()))
 
     /** Heart-rate log for a day. The request carries that day's midnight (our local time) as a Unix timestamp. */
-    fun requestHeartRateLog(daysAgo: Int = 0) {
-        val midnight = LocalDate.now().minusDays(daysAgo.toLong()).atStartOfDay(ZoneId.systemDefault()).toEpochSecond()
+    fun requestHeartRateLog(daysAgo: Int = 0, clockAsUtc: Boolean = false) {
+        // clockAsUtc = "way B": treat the phone's local midnight as if it were UTC, which is how the
+        // public Colmi tool treats the band's clock. Way A uses the true Unix time of local midnight.
+        val zone = if (clockAsUtc) ZoneOffset.UTC else ZoneId.systemDefault()
+        val midnight = LocalDate.now().minusDays(daysAgo.toLong()).atStartOfDay(zone).toEpochSecond()
         sendQc(0x15, ByteArray(4) { ((midnight shr (8 * it)) and 0xFF).toByte() })
     }
 

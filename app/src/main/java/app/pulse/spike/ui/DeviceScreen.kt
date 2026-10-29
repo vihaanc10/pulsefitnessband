@@ -79,27 +79,18 @@ fun DeviceScreen(vm: SpikeViewModel, conn: BandConnection) {
                         enabled = entries.isNotEmpty(),
                     ) { Text("Export CSV") }
                 }
-                if (state == BandConnection.State.Ready) {
-                    OutlinedButton(onClick = { conn.subscribeToAll() }) { Text("Subscribe to all notifications") }
-                    Button(onClick = { conn.requestBattery() }) { Text("Test: ask the band for its battery") }
-                    OutlinedButton(onClick = { conn.requestHeartRateSettings() }) { Text("Check: is heart-rate logging on?") }
-                    Button(onClick = { conn.enableHeartRateLogging(5) }) { Text("Turn ON heart-rate logging (every 5 min)") }
-                    OutlinedButton(onClick = { conn.requestHeartRateLog() }) { Text("Test: read today's heart-rate log") }
-                    OutlinedButton(onClick = { conn.requestSteps() }) { Text("Test: read today's steps") }
-                    OutlinedButton(onClick = { conn.requestHeartRateLog(1) }) { Text("Test: read yesterday's heart-rate log") }
-                    OutlinedButton(onClick = { conn.requestSteps(1) }) { Text("Test: read yesterday's steps") }
-                }
             }
 
             TabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Services") })
+                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Tests") })
                 Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Log (${entries.size})") })
+                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Services") })
             }
 
-            if (tab == 0) {
-                ServicesTab(conn, services, subscribed, onWrite = { writeTarget = it })
-            } else {
-                LogTab(entries)
+            when (tab) {
+                0 -> TestsTab(conn, state == BandConnection.State.Ready, entries)
+                1 -> LogTab(entries)
+                else -> ServicesTab(conn, services, subscribed, onWrite = { writeTarget = it })
             }
         }
     }
@@ -160,6 +151,27 @@ private fun ServicesTab(
 }
 
 @Composable
+private fun LogLine(e: LogEntry, timeFormat: SimpleDateFormat) {
+    val short = e.characteristic.take(8)
+    Text(
+        buildString {
+            append(timeFormat.format(Date(e.timeMillis)))
+            append("  ${e.direction} ${e.kind}")
+            if (short.isNotEmpty()) append("  $short")
+            if (e.hex.isNotEmpty()) append("\n${e.hex}")
+            if (e.note.isNotEmpty()) append("\n${e.note}")
+        },
+        fontFamily = FontFamily.Monospace,
+        fontSize = 11.sp,
+        color = when (e.direction) {
+            "TX" -> MaterialTheme.colorScheme.primary
+            "RX" -> MaterialTheme.colorScheme.tertiary
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
+    )
+}
+
+@Composable
 private fun LogTab(entries: List<LogEntry>) {
     val timeFormat = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.US) }
     // Newest first, and only the latest 300 on screen. The CSV file has everything.
@@ -172,27 +184,41 @@ private fun LogTab(entries: List<LogEntry>) {
         if (entries.size > shown.size) {
             item { Text("Showing the latest ${shown.size}. The exported CSV has all ${entries.size}.", fontSize = 12.sp) }
         }
-        items(shown.size) { i ->
-            val e = shown[i]
-            val short = e.characteristic.take(8)
-            Text(
-                buildString {
-                    append(timeFormat.format(Date(e.timeMillis)))
-                    append("  ${e.direction} ${e.kind}")
-                    if (short.isNotEmpty()) append("  $short")
-                    if (e.hex.isNotEmpty()) append("\n${e.hex}")
-                    if (e.note.isNotEmpty()) append("\n${e.note}")
-                },
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
-                color = when (e.direction) {
-                    "TX" -> MaterialTheme.colorScheme.primary
-                    "RX" -> MaterialTheme.colorScheme.tertiary
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-        }
+        items(shown.size) { i -> LogLine(shown[i], timeFormat) }
     }
+}
+
+@Composable
+private fun TestsTab(conn: BandConnection, ready: Boolean, entries: List<LogEntry>) {
+    val timeFormat = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.US) }
+    val latest = remember(entries) { entries.takeLast(8).reversed() }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (!ready) item { Text("Wait for \"Connected\" above, then these buttons work.") }
+        item { Text("Questions (they change nothing on the band)", style = MaterialTheme.typography.titleSmall) }
+        item { TestButton("Listen for everything", ready) { conn.subscribeToAll() } }
+        item { TestButton("Ask the band for its battery", ready) { conn.requestBattery() } }
+        item { TestButton("Is heart-rate logging on?", ready) { conn.requestHeartRateSettings() } }
+        item { TestButton("Heart-rate log: today, way A", ready) { conn.requestHeartRateLog() } }
+        item { TestButton("Heart-rate log: today, way B", ready) { conn.requestHeartRateLog(clockAsUtc = true) } }
+        item { TestButton("Heart-rate log: yesterday, way A", ready) { conn.requestHeartRateLog(1) } }
+        item { TestButton("Heart-rate log: yesterday, way B", ready) { conn.requestHeartRateLog(1, clockAsUtc = true) } }
+        item { TestButton("Steps: today", ready) { conn.requestSteps() } }
+        item { TestButton("Steps: yesterday", ready) { conn.requestSteps(1) } }
+        item { Text("Changes a setting on the band", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp)) }
+        item { TestButton("Set the band's clock to the phone's time", ready) { conn.setBandClock() } }
+        item { TestButton("Turn ON heart-rate logging (every 5 min)", ready) { conn.enableHeartRateLogging(5) } }
+        item { Text("Latest messages", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp)) }
+        items(latest.size) { i -> LogLine(latest[i], timeFormat) }
+    }
+}
+
+@Composable
+private fun TestButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+    OutlinedButton(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text(text) }
 }
 
 @Composable

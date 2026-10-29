@@ -26,6 +26,7 @@ class QcDecoder(private val log: MessageLog) {
     fun onPacket(p: ByteArray) {
         if (p.size != 16) return
         when (p[0].toInt() and 0xFF) {
+            0x01 -> log.info("decoded", "The band answered the set-clock command (its reply is a feature list we ignore)")
             0x16 -> heartRateSettings(p)
             0x15 -> heartRate(p)
             0x43 -> steps(p)
