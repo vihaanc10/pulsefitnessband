@@ -51,12 +51,13 @@ One row per thing I did. "Bytes written" = phone to band. "Bytes received" = ban
 | 1 | Connected with Pulse, tapped "Subscribe to all notifications" | `2A05`, `6e400003`, `de5bf729`, `fea1`, `fea2` | `01 00` to the notification switch (0x2902) of each NOTIFY one, `02 00` for the INDICATE ones (`2A05`, `fea2`) | nothing | all five subscriptions succeeded (status=0) | yes | log screenshots |
 | 2 | Waited / pressed band button / walked (exact trigger unknown) | `6e400003` | nothing | one notification: `73 01 00 00 00 00 00 00 00 00 00 00 00 00 00 74` (16 bytes) | Last byte `74` = sum of the first 15 bytes (`73+01`), so this looks like a 16-byte packet with a checksum. Meaning of `73 01` unknown. | guess | log screenshots |
 | 3 | Pulse test button "ask the band for its battery" (sent twice) | `6e400002` write, reply on `6e400003` | `03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03` | `03 5B 00 00 00 00 00 00 00 00 00 00 00 00 00 5E` (identical both times, about 0.1 s after the write) | The band answers a Colmi-style battery request. Reply echoes command `03`, checksum OK (`03+5B=5E`). Byte 1 = `5B` = 91, which fits a battery percentage (byte meaning is from the public docs, not yet cross-checked against a second reading). | yes for the command and checksum, guess for "91% battery" | log screenshot, 2026-10-29 03:31 |
+| 4 | Pulse test button "read today's heart-rate log" (tapped twice, at 03:37 local time, 2026-10-30 UTC+8) | `6e400002` write, reply on `6e400003` | `15 80 6D E3 6A 00 00 00 00 00 00 00 00 00 00 4F` (`15` = command; `80 6D E3 6A` = 0x6AE36D80 = 1793289600, today's local midnight as a Unix timestamp, little-endian) | `15 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 14` | Second byte `FF` is "no data" in the public docs. So the band answers the heart-rate command but has nothing for today. Unknown whether the band is not logging heart rate, was not worn, or wants a different timestamp. | command answered: yes; "no data": guess | log screenshot, 2026-10-30 03:37 |
 
 Actions to capture (PRD section 8, steps 3 and 4):
 
 - [ ] Connect / pair for the first time
 - [x] Read battery level (command `03`, works without any handshake)
-- [ ] Sync heart-rate log
+- [ ] Sync heart-rate log (command `15` answers; today returned "no data", yesterday not tested yet)
 - [ ] Sync SpO2 log
 - [ ] Sync sleep
 - [ ] Sync steps / calories / distance
@@ -84,7 +85,7 @@ Actions to capture (PRD section 8, steps 3 and 4):
 
 **Hints from public Colmi-ring docs (read 2026-10-29; none of this is verified on our band):**
 
-- Packets are 16 bytes both ways: byte 0 = command, bytes 1-14 = data, byte 15 = checksum (one source says sum of the other 15 bytes modulo 255, another assumed 256; our one sample `73 01 ... 74` fits both, so we can't tell yet).
+- Packets are 16 bytes both ways: byte 0 = command, bytes 1-14 = data, byte 15 = checksum = sum of the first 15 bytes **modulo 256**. **Confirmed on our band:** the reply `15 FF 00 ... 00 14` has 0x15 + 0xFF = 0x114, whose low byte is `14` (modulo 255 would have given `15`).
 - Write to `6e400002`, listen on `6e400003`; no pairing or keys.
 - `0x03` = battery request and reply (the only opcode the main README gives). Other features are named (set time, heart-rate log and its interval, real-time heart rate and SpO2, steps, sleep) but their opcodes are in source files we have not read yet.
 - That ring's command-line tool also has `reboot` and raw-packet commands, so treat unknown writes with care.

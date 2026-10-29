@@ -84,6 +84,8 @@ fun DeviceScreen(vm: SpikeViewModel, conn: BandConnection) {
                     Button(onClick = { conn.requestBattery() }) { Text("Test: ask the band for its battery") }
                     OutlinedButton(onClick = { conn.requestHeartRateLog() }) { Text("Test: read today's heart-rate log") }
                     OutlinedButton(onClick = { conn.requestSteps() }) { Text("Test: read today's steps") }
+                    OutlinedButton(onClick = { conn.requestHeartRateLog(1) }) { Text("Test: read yesterday's heart-rate log") }
+                    OutlinedButton(onClick = { conn.requestSteps(1) }) { Text("Test: read yesterday's steps") }
                 }
             }
 

@@ -197,14 +197,14 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
 
     fun requestBattery() = sendQc(0x03)
 
-    /** Heart-rate log for today. The request carries midnight (our local time) as a Unix timestamp. */
-    fun requestHeartRateLog() {
-        val midnight = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toEpochSecond()
+    /** Heart-rate log for a day. The request carries that day's midnight (our local time) as a Unix timestamp. */
+    fun requestHeartRateLog(daysAgo: Int = 0) {
+        val midnight = LocalDate.now().minusDays(daysAgo.toLong()).atStartOfDay(ZoneId.systemDefault()).toEpochSecond()
         sendQc(0x15, ByteArray(4) { ((midnight shr (8 * it)) and 0xFF).toByte() })
     }
 
-    /** Steps for today (day offset 0). The other four bytes are fixed values from the public docs. */
-    fun requestSteps() = sendQc(0x43, byteArrayOf(0, 0x0F, 0, 0x5F, 0x01))
+    /** Steps for a day (0 = today, 1 = yesterday). The other four bytes are fixed values from the public docs. */
+    fun requestSteps(daysAgo: Int = 0) = sendQc(0x43, byteArrayOf(daysAgo.toByte(), 0x0F, 0, 0x5F, 0x01))
 
     private fun find(info: CharInfo): BluetoothGattCharacteristic? {
         val ch = gatt?.getService(info.serviceUuid)?.getCharacteristic(info.uuid)
