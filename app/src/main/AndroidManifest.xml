@@ -16,6 +16,11 @@
     <!-- Android 13 and newer: needed to show Pulse's notifications. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Workout mode: keeps GPS tracking and the band connection alive with a visible notification. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
     <application
@@ -33,6 +38,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".background.WorkoutService"
+            android:exported="false"
+            android:foregroundServiceType="location|connectedDevice" />
 
         <!-- Lets the Share button hand our CSV log files to other apps. -->
         <provider

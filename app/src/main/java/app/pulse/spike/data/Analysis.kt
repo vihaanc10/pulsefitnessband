@@ -100,15 +100,17 @@ object Analysis {
         return (0..values.size - window).minOf { i -> values.subList(i, i + window).average() }.roundToInt()
     }
 
-    /** 0-21, rising fast at first and flattening, from time spent in the heart-rate zones. */
-    fun strainFromHeartRate(bpms: List<Int>, maxHr: Int = 190): Double {
-        var load = 0.0
+    /** 0-21, rising fast at first and flattening, from time spent in the heart-rate zones. [extraLoad] adds load that heart rate can't see (lifting). */
+    fun strainFromHeartRate(bpms: List<Int>, maxHr: Int = 190, extraLoad: Double = 0.0): Double {
+        var load = extraLoad
         for (bpm in bpms) {
             val fraction = bpm / maxHr.toDouble()
             load += 5 * zoneWeight(fraction) // each reading stands for 5 minutes
         }
-        return Math.round(21 * (1 - exp(-load / 450.0)) * 10) / 10.0
+        return strainFromLoad(load)
     }
+
+    fun strainFromLoad(load: Double): Double = Math.round(21 * (1 - exp(-load / 450.0)) * 10) / 10.0
 
     /** How hard a heart rate works the body, by share of maximum: 0 below the zones up to 8 in the top zone. */
     fun zoneWeight(fraction: Double): Double = when {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -214,6 +215,26 @@ fun EmptyState(
             if (onSync != null) PulseButton("Sync now", onSync)
             PulseButton("Preview with sample data", onPreview, filled = onSync == null && onAddDevice == null)
             PulseButton("Open Bluetooth lab", onOpenLab, filled = false)
+        }
+    }
+}
+
+/** A screen title with the profile avatar on the right (Profile has no slot in the bottom bar). */
+@Composable
+fun TitleRow(title: String, initial: String, onProfile: () -> Unit, modifier: Modifier = Modifier, extra: (@Composable () -> Unit)? = null) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = PulseType.Headline)
+        if (extra != null) {
+            Spacer(Modifier.width(12.dp))
+            extra()
+        }
+        Spacer(Modifier.weight(1f))
+        Box(
+            Modifier.size(38.dp).clip(CircleShape).border(1.dp, PulseColors.Border, CircleShape)
+                .background(PulseColors.Card).clickable(onClick = onProfile),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(initial, style = PulseType.Title.copy(fontSize = 14.sp))
         }
     }
 }

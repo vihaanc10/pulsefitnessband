@@ -26,6 +26,8 @@ import app.pulse.spike.ui.components.ProgressRing
 import app.pulse.spike.ui.theme.PulseColors
 import app.pulse.spike.ui.theme.strainColor
 import kotlin.math.roundToInt
+import app.pulse.spike.data.WorkoutSummary
+import app.pulse.spike.ui.components.PulseButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -106,14 +108,15 @@ fun HomeScreen(ui: PulseUiState, repo: HealthRepository) {
             )
         } else {
             val day = remember(date, repo) { repo.day(date) }
-            HomeContent(day, ui)
+            val workouts = remember(date, repo) { repo.workoutsOn(date) }
+            HomeContent(day, ui, workouts)
         }
         Spacer(Modifier.height(48.dp))
     }
 }
 
 @Composable
-private fun HomeContent(day: DayData, ui: PulseUiState) {
+private fun HomeContent(day: DayData, ui: PulseUiState, workouts: List<WorkoutSummary>) {
     // The three rings, like the WHOOP home screen: sleep, recovery, strain.
     SummaryRings(day, onOpenSleep = { ui.tab = PulseTab.Sleep })
     Spacer(Modifier.height(32.dp))
@@ -229,6 +232,25 @@ private fun HomeContent(day: DayData, ui: PulseUiState) {
                 modifier = Modifier.fillMaxWidth().height(100.dp),
                 labels = List(24) { h -> if (h % 12 == 0) (if (h == 0) "12a" else "12p") else "" },
             )
+        }
+    }
+
+    // Workouts
+    Spacer(Modifier.height(64.dp))
+    Label("Workouts")
+    Spacer(Modifier.height(16.dp))
+    if (workouts.isEmpty()) {
+        PulseCard {
+            Text("No workouts yet today. Start one before you play, ride, run, swim or lift.", style = PulseType.Body)
+            Spacer(Modifier.height(16.dp))
+            PulseButton("Start a workout", onClick = { ui.tab = PulseTab.Workouts })
+        }
+    } else {
+        PulseCard {
+            workouts.forEachIndexed { index, w ->
+                if (index > 0) Spacer(Modifier.height(16.dp))
+                WorkoutLine(w, ui.metricUnits)
+            }
         }
     }
 

@@ -83,6 +83,26 @@ class SampleHealthRepository : HealthRepository {
         )
     }
 
+    private fun sampleWorkout(id: Long, kind: WorkoutKind, hoursAgo: Int, minutes: Int, km: Double, avg: Int, max: Int, strain: Double, kcal: Int) =
+        WorkoutSummary(
+            id = id, kind = kind, startMs = System.currentTimeMillis() - hoursAgo * 3_600_000L,
+            endMs = System.currentTimeMillis() - hoursAgo * 3_600_000L + minutes * 60_000L, durationMin = minutes,
+            distanceM = km * 1000, avgHr = avg, maxHr = max, zoneMinutes = listOf(6, 14, 22, 12, 4), strain = strain,
+            calories = kcal, hrSource = "live", hrLoad = 0.0, extraLoad = 0.0, intensity = 2,
+        )
+
+    override fun workoutsOn(date: LocalDate): List<WorkoutSummary> =
+        if (date == LocalDate.now()) {
+            listOf(sampleWorkout(2, WorkoutKind.Basketball, 3, 62, 0.0, 142, 176, 9.6, 640), sampleWorkout(1, WorkoutKind.Biking, 9, 45, 18.4, 131, 158, 7.1, 410))
+        } else {
+            emptyList()
+        }
+
+    override fun recentWorkouts(limit: Int): List<WorkoutSummary> = workoutsOn(LocalDate.now()).take(limit)
+
+    override fun route(workoutId: Long): List<Pair<Double, Double>> =
+        if (workoutId == 1L) (0..60).map { i -> val a = i / 60.0 * 6.0; (a * 0.01 + 0.004 * kotlin.math.sin(a * 2)) to (0.012 * kotlin.math.cos(a) + a * 0.003) } else emptyList()
+
     private fun heartRateSeries(rnd: Random, restingHr: Int, strain: Double, upTo: Int): List<HrPoint> {
         val points = ArrayList<HrPoint>()
         var minute = 0
@@ -148,7 +168,9 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
 
         // Recovery needs a personal baseline: 5 nights in total (PRD section 5).
         val recovery = if (night != null && previous.size >= 4) recoveryFor(date, night, previous, performance, maxHr) else null
-        val strain = if (bpms.isEmpty()) 0.0 else Analysis.strainFromHeartRate(bpms, maxHr)
+        // Lifting adds muscular load that heart rate can't see.
+        val liftingLoad = workoutsOn(date).filter { it.kind == WorkoutKind.Lifting }.sumOf { it.extraLoad }
+        val strain = if (bpms.isEmpty() && liftingLoad == 0.0) 0.0 else Analysis.strainFromHeartRate(bpms, maxHr, liftingLoad)
 
         // Energy starts from how rested you are at waking up.
         val wakeMinute = if (night != null) (18 * 60 + (night.lastSlot + 1) * 5 - 1440).coerceIn(0, 1439) else 7 * 60
@@ -176,7 +198,7 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
             avgHr = if (bpms.isEmpty()) 0 else bpms.average().roundToInt(),
             maxHr = bpms.maxOrNull() ?: 0, currentHr = bpms.lastOrNull() ?: 0,
             heartRate = points, zoneMinutes = zones.toList(),
-            hasSleep = night != null, hasRecovery = recovery != null, hasStrain = bpms.isNotEmpty(),
+            hasSleep = night != null, hasRecovery = recovery != null, hasStrain = bpms.isNotEmpty() || liftingLoad > 0.0,
             nightsOfData = previous.size + if (night != null) 1 else 0,
             sleepWindow = night?.let {
                 "${formatClock(18 * 60 + it.firstSlot * 5)} to ${formatClock(18 * 60 + (it.lastSlot + 1) * 5)}"
@@ -192,6 +214,21 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
             stepsByHour = hours.toList(),
         )
     }
+
+    override fun workoutsOn(date: LocalDate): List<WorkoutSummary> {
+        val zone = java.time.ZoneId.systemDefault()
+        val from = date.atStartOfDay(zone).toInstant().toEpochMilli()
+        val to = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val profile = user
+        return db.workoutsBetween(from, to).map { WorkoutStats.summarize(db, it, profile) }
+    }
+
+    override fun recentWorkouts(limit: Int): List<WorkoutSummary> {
+        val profile = user
+        return db.recentWorkouts(limit).map { WorkoutStats.summarize(db, it, profile) }
+    }
+
+    override fun route(workoutId: Long): List<Pair<Double, Double>> = db.routeOf(workoutId)
 
     /** The night that ended on the morning of [date], or null if the readings don't show one. */
     private fun nightFor(date: LocalDate): SleepNight? {

@@ -44,6 +44,7 @@ import app.pulse.spike.ui.theme.PulseType
 enum class PulseTab(val label: String) {
     Home("Home"),
     Sleep("Sleep"),
+    Workouts("Workouts"),
     Health("Health"),
     Coach("Coach"),
     Profile("Profile"),
@@ -57,7 +58,8 @@ fun BottomNavigation(selected: PulseTab, onSelect: (PulseTab) -> Unit, modifier:
             Modifier.fillMaxWidth().navigationBarsPadding().height(66.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PulseTab.entries.forEach { tab ->
+            // Profile is opened from the avatar at the top of each screen, so it has no slot in the bar.
+            PulseTab.entries.filter { it != PulseTab.Profile }.forEach { tab ->
                 val active = tab == selected
                 val tint by animateColorAsState(
                     if (active) PulseColors.TextPrimary else PulseColors.TextTertiary, tween(220), label = "navTint",
@@ -109,6 +111,13 @@ fun NavIcon(tab: PulseTab, tint: Color, modifier: Modifier = Modifier) {
                 val outer = Path().apply { addOval(Rect(w * 0.12f, h * 0.12f, w * 0.88f, h * 0.88f)) }
                 val cut = Path().apply { addOval(Rect(w * 0.36f, h * 0.0f, w * 1.06f, h * 0.7f)) }
                 drawPath(Path.combine(PathOperation.Difference, outer, cut), tint, style = stroke)
+            }
+            PulseTab.Workouts -> {
+                val bolt = Path().apply {
+                    moveTo(w * 0.58f, h * 0.06f); lineTo(w * 0.22f, h * 0.56f); lineTo(w * 0.48f, h * 0.56f)
+                    lineTo(w * 0.40f, h * 0.94f); lineTo(w * 0.78f, h * 0.40f); lineTo(w * 0.52f, h * 0.40f); close()
+                }
+                drawPath(bolt, tint, style = stroke)
             }
             PulseTab.Health -> {
                 val beat = Path().apply {

@@ -43,6 +43,12 @@ class PulseUiState {
     var persistNotification: ((String, Boolean) -> Unit)? = null
     var testNotification: (() -> Boolean)? = null
 
+    /** The workout running right now, and the actions the Workouts tab calls (set by the ViewModel). */
+    var activeWorkout by mutableStateOf<app.pulse.spike.data.ActiveWorkout?>(null)
+    var startWorkout: ((app.pulse.spike.data.WorkoutKind, Int) -> Unit)? = null
+    var stopWorkout: (() -> Unit)? = null
+    var discardWorkout: (() -> Unit)? = null
+
     /** Set by the ViewModel: saves the edited profile, and remembers metric / imperial. */
     var saveProfile: ((app.pulse.spike.data.UserProfile) -> Unit)? = null
     var persistUnits: ((Boolean) -> Unit)? = null

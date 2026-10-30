@@ -205,6 +205,12 @@ class BandConnection(private val context: Context, private val log: MessageLog) 
 
     fun requestBattery() = sendQc(0x03)
 
+    // Live heart rate (workout mode). Commands from the public Colmi docs; untested on this band.
+    fun startLiveHeartRate() = sendQc(0x69, byteArrayOf(1, 1))
+    fun continueLiveHeartRate() = sendQc(0x69, byteArrayOf(1, 3))
+    fun keepAliveLiveHeartRate() = sendQc(0x1E, byteArrayOf(0x33))
+    fun stopLiveHeartRate() = sendQc(0x6A, byteArrayOf(1, 0, 0))
+
     /** WRITES the band's clock: sets it to the phone's current local time (the command the public docs call "set time"). */
     fun setBandClock() {
         val now = LocalDateTime.now()

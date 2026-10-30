@@ -24,6 +24,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import app.pulse.spike.ui.components.TitleRow
+import app.pulse.spike.ui.components.PulseTab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -63,11 +65,7 @@ fun CoachScreen(ui: PulseUiState, repo: HealthRepository) {
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
     ) {
         Spacer(Modifier.height(24.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Coach", style = PulseType.Headline)
-            Spacer(Modifier.width(12.dp))
-            Pill("Preview")
-        }
+        TitleRow("Coach", repo.user.name.take(1).uppercase(), { ui.tab = PulseTab.Profile }, extra = { Pill("Preview") })
         Spacer(Modifier.height(24.dp))
         if (!repo.hasData) {
             EmptyState(

@@ -61,6 +61,7 @@ class BandSync(
     }
 
     suspend fun run(address: String, name: String?) {
+        if (app.pulse.spike.data.BandLock.workoutActive) return // a workout is using the band
         if (!busy.compareAndSet(false, true)) return // another sync (app or background) is already running
         var connection: BandConnection? = null
         try {

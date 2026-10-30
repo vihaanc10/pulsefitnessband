@@ -11,9 +11,15 @@ import app.pulse.spike.ble.ScanItem
 import app.pulse.spike.background.BackgroundSync
 import app.pulse.spike.background.Notifier
 import app.pulse.spike.ble.hasBlePermissions
+import app.pulse.spike.background.WorkoutService
+import app.pulse.spike.data.ActiveWorkout
+import app.pulse.spike.data.BandLock
 import app.pulse.spike.data.PulseDb
+import app.pulse.spike.data.WorkoutKind
+import app.pulse.spike.data.WorkoutTracker
 import app.pulse.spike.ui.PulseUiState
 import app.pulse.spike.ui.components.PulseTab
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -59,6 +65,59 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         }
         ui.testNotification = { Notifier(getApplication(), db).sendTest() }
         if (ui.bandSaved) BackgroundSync.schedule(getApplication())
+
+        ui.startWorkout = { kind, intensity -> startWorkout(kind, intensity) }
+        ui.stopWorkout = { stopWorkout() }
+        ui.discardWorkout = { discardWorkout() }
+        // A workout that was running when the app was closed carries on.
+        db.getMeta("active_workout")?.toLongOrNull()?.let { id ->
+            val w = db.getWorkout(id)
+            if (w != null && w.endMs == 0L) {
+                ui.activeWorkout = ActiveWorkout(w.id, w.kind, w.startMs, w.intensity)
+                BandLock.workoutActive = true
+                WorkoutService.start(getApplication(), w.id, w.kind, w.startMs)
+            } else {
+                db.deleteMeta("active_workout")
+            }
+        }
+    }
+
+    private fun startWorkout(kind: WorkoutKind, intensity: Int) {
+        if (ui.activeWorkout != null) return
+        // The lab connection would fight the workout for the band.
+        _connection.value?.disconnect()
+        _connection.value = null
+        val now = System.currentTimeMillis()
+        val id = db.startWorkout(kind, now, intensity)
+        ui.activeWorkout = ActiveWorkout(id, kind, now, intensity)
+        db.setMeta("active_workout", id.toString())
+        WorkoutTracker.reset()
+        BandLock.workoutActive = true
+        WorkoutService.start(getApplication(), id, kind, now)
+    }
+
+    private fun stopWorkout() {
+        val active = ui.activeWorkout ?: return
+        db.finishWorkout(active.id, System.currentTimeMillis(), WorkoutTracker.state.value.distanceM, active.intensity)
+        WorkoutService.stop(getApplication())
+        db.deleteMeta("active_workout")
+        ui.activeWorkout = null
+        ui.dataVersion += 1
+        viewModelScope.launch {
+            delay(3000) // let the workout release the band, then fetch its heart-rate log
+            BandLock.workoutActive = false
+            syncNow()
+        }
+    }
+
+    private fun discardWorkout() {
+        val active = ui.activeWorkout ?: return
+        WorkoutService.stop(getApplication())
+        db.deleteWorkout(active.id)
+        db.deleteMeta("active_workout")
+        BandLock.workoutActive = false
+        ui.activeWorkout = null
+        ui.dataVersion += 1
     }
 
     /** Connects to the saved band in the background and copies its readings onto the phone. */

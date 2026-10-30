@@ -13,6 +13,9 @@ interface QcListener {
     fun onHeartRateNoData() {}
     fun onSteps(records: List<StepRecord>) {}
     fun onStepsNoData() {}
+
+    /** A heart-rate reading streamed live from the band (workout mode). */
+    fun onLiveHeartRate(bpm: Int) {}
 }
 
 /**
@@ -36,6 +39,7 @@ class QcDecoder(private val log: MessageLog, private val listener: () -> QcListe
         when (p[0].toInt() and 0xFF) {
             0x01 -> log.info("decoded", "The band answered the set-clock command (its reply is a feature list we ignore)")
             0x03 -> battery(p)
+            0x69 -> if (u(p, 1) == 1 && u(p, 2) == 0 && u(p, 3) in 30..220) listener()?.onLiveHeartRate(u(p, 3))
             0x16 -> heartRateSettings(p)
             0x15 -> heartRate(p)
             0x43 -> steps(p)

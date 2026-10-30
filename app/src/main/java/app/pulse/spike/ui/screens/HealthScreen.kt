@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import app.pulse.spike.ui.components.TitleRow
+import app.pulse.spike.ui.components.PulseTab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -52,7 +54,7 @@ fun HealthScreen(ui: PulseUiState, repo: HealthRepository) {
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
     ) {
         Spacer(Modifier.height(24.dp))
-        Text("Health", style = PulseType.Headline)
+        TitleRow("Health", repo.user.name.take(1).uppercase(), { ui.tab = PulseTab.Profile })
         Spacer(Modifier.height(24.dp))
         if (!repo.hasData) {
             EmptyState(

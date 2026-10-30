@@ -17,7 +17,7 @@ data class StepRecord(val day: String, val index: Int, val steps: Int, val calor
  *  - steps: activity blocks of 15 minutes
  *  - meta: small facts such as the saved band, its battery and the last sync time
  */
-class PulseDb(context: Context) : SQLiteOpenHelper(context, "pulse.db", null, 1) {
+class PulseDb(context: Context) : SQLiteOpenHelper(context, "pulse.db", null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE hr (day TEXT NOT NULL, slot INTEGER NOT NULL, bpm INTEGER NOT NULL, PRIMARY KEY (day, slot))")
@@ -26,9 +26,108 @@ class PulseDb(context: Context) : SQLiteOpenHelper(context, "pulse.db", null, 1)
                 "calories INTEGER NOT NULL, distance INTEGER NOT NULL, PRIMARY KEY (day, idx))",
         )
         db.execSQL("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        createWorkoutTables(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) createWorkoutTables(db)
+    }
+
+    private fun createWorkoutTables(db: SQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE workouts (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, start_ms INTEGER NOT NULL, " +
+                "end_ms INTEGER NOT NULL, distance REAL NOT NULL, intensity INTEGER NOT NULL)",
+        )
+        db.execSQL("CREATE TABLE route (workout_id INTEGER NOT NULL, t INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL)")
+        db.execSQL("CREATE TABLE live_hr (workout_id INTEGER NOT NULL, t INTEGER NOT NULL, bpm INTEGER NOT NULL)")
+    }
+
+    // ---- workouts ----
+
+    @Synchronized
+    fun startWorkout(kind: WorkoutKind, startMs: Long, intensity: Int): Long {
+        val values = ContentValues().apply {
+            put("kind", kind.name); put("start_ms", startMs); put("end_ms", 0L); put("distance", 0.0); put("intensity", intensity)
+        }
+        return writableDatabase.insert("workouts", null, values)
+    }
+
+    @Synchronized
+    fun finishWorkout(id: Long, endMs: Long, distanceM: Double, intensity: Int) {
+        val values = ContentValues().apply { put("end_ms", endMs); put("distance", distanceM); put("intensity", intensity) }
+        writableDatabase.update("workouts", values, "id = ?", arrayOf(id.toString()))
+    }
+
+    @Synchronized
+    fun deleteWorkout(id: Long) {
+        val args = arrayOf(id.toString())
+        writableDatabase.delete("workouts", "id = ?", args)
+        writableDatabase.delete("route", "workout_id = ?", args)
+        writableDatabase.delete("live_hr", "workout_id = ?", args)
+    }
+
+    private fun readWorkouts(sql: String, args: Array<String>): List<Workout> {
+        val out = ArrayList<Workout>()
+        readableDatabase.rawQuery(sql, args).use { c ->
+            while (c.moveToNext()) {
+                val kind = runCatching { WorkoutKind.valueOf(c.getString(1)) }.getOrNull() ?: continue
+                out.add(Workout(c.getLong(0), kind, c.getLong(2), c.getLong(3), c.getDouble(4), c.getInt(5)))
+            }
+        }
+        return out
+    }
+
+    @Synchronized
+    fun getWorkout(id: Long): Workout? =
+        readWorkouts("SELECT id, kind, start_ms, end_ms, distance, intensity FROM workouts WHERE id = ?", arrayOf(id.toString())).firstOrNull()
+
+    /** Finished workouts that started between the two times, newest first. */
+    @Synchronized
+    fun workoutsBetween(fromMs: Long, toMs: Long): List<Workout> = readWorkouts(
+        "SELECT id, kind, start_ms, end_ms, distance, intensity FROM workouts WHERE end_ms > 0 AND start_ms >= ? AND start_ms < ? ORDER BY start_ms DESC",
+        arrayOf(fromMs.toString(), toMs.toString()),
+    )
+
+    @Synchronized
+    fun recentWorkouts(limit: Int): List<Workout> = readWorkouts(
+        "SELECT id, kind, start_ms, end_ms, distance, intensity FROM workouts WHERE end_ms > 0 ORDER BY start_ms DESC LIMIT ?",
+        arrayOf(limit.toString()),
+    )
+
+    @Synchronized
+    fun addRoutePoint(workoutId: Long, t: Long, lat: Double, lon: Double) {
+        val values = ContentValues().apply { put("workout_id", workoutId); put("t", t); put("lat", lat); put("lon", lon) }
+        writableDatabase.insert("route", null, values)
+    }
+
+    @Synchronized
+    fun routeOf(workoutId: Long): List<Pair<Double, Double>> {
+        val out = ArrayList<Pair<Double, Double>>()
+        readableDatabase.rawQuery("SELECT lat, lon FROM route WHERE workout_id = ? ORDER BY t", arrayOf(workoutId.toString())).use { c ->
+            while (c.moveToNext()) out.add(c.getDouble(0) to c.getDouble(1))
+        }
+        return out
+    }
+
+    @Synchronized
+    fun addLiveHr(workoutId: Long, t: Long, bpm: Int) {
+        val values = ContentValues().apply { put("workout_id", workoutId); put("t", t); put("bpm", bpm) }
+        writableDatabase.insert("live_hr", null, values)
+    }
+
+    @Synchronized
+    fun liveHr(workoutId: Long): List<Pair<Long, Int>> {
+        val out = ArrayList<Pair<Long, Int>>()
+        readableDatabase.rawQuery("SELECT t, bpm FROM live_hr WHERE workout_id = ? ORDER BY t", arrayOf(workoutId.toString())).use { c ->
+            while (c.moveToNext()) out.add(c.getLong(0) to c.getInt(1))
+        }
+        return out
+    }
+
+    @Synchronized
+    fun deleteMeta(key: String) {
+        writableDatabase.delete("meta", "key = ?", arrayOf(key))
+    }
 
     /** Saves the readings of one day. Readings outside 30-220 bpm (empty slots, glitches) are skipped. */
     @Synchronized

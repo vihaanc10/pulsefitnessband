@@ -75,6 +75,14 @@ interface HealthRepository {
     val user: UserProfile
     fun day(date: LocalDate): DayData
 
+    /** Finished workouts that started on [date], newest first. */
+    fun workoutsOn(date: LocalDate): List<WorkoutSummary> = emptyList()
+
+    fun recentWorkouts(limit: Int): List<WorkoutSummary> = emptyList()
+
+    /** GPS route of a workout as (latitude, longitude) pairs. */
+    fun route(workoutId: Long): List<Pair<Double, Double>> = emptyList()
+
     fun days(endInclusive: LocalDate, count: Int): List<DayData> =
         (count - 1 downTo 0).map { day(endInclusive.minusDays(it.toLong())) }
 }

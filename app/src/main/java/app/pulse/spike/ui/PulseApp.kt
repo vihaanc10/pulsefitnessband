@@ -39,6 +39,7 @@ import app.pulse.spike.ui.screens.HealthScreen
 import app.pulse.spike.ui.screens.HomeScreen
 import app.pulse.spike.ui.screens.ProfileScreen
 import app.pulse.spike.ui.screens.SleepScreen
+import app.pulse.spike.ui.screens.WorkoutsScreen
 import app.pulse.spike.ui.theme.PulseColors
 import kotlinx.coroutines.delay
 
@@ -101,7 +102,8 @@ fun PulseApp(vm: SpikeViewModel) {
                         when (tab) {
                             PulseTab.Home -> HomeScreen(ui, repo)
                             PulseTab.Sleep -> SleepScreen(ui, repo)
-                            PulseTab.Health -> HealthScreen(ui, repo)
+                            PulseTab.Workouts -> WorkoutsScreen(ui, repo)
+                        PulseTab.Health -> HealthScreen(ui, repo)
                             PulseTab.Coach -> CoachScreen(ui, repo)
                             PulseTab.Profile -> ProfileScreen(ui, repo, onSync = { vm.syncNow() })
                         }
