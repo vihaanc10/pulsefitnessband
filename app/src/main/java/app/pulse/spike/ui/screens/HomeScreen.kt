@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.pulse.spike.data.DayData
 import app.pulse.spike.data.HealthRepository
 import app.pulse.spike.data.formatDuration
@@ -96,8 +97,8 @@ fun HomeScreen(ui: PulseUiState, repo: HealthRepository) {
 
 @Composable
 private fun HomeContent(day: DayData) {
-    if (day.hasScores) {
-        // Recovery
+    // Recovery
+    if (day.hasRecovery) {
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             RecoveryRing(day.recovery, Modifier.size(290.dp))
         }
@@ -118,13 +119,37 @@ private fun HomeContent(day: DayData) {
                 Stat("Resp. rate", day.respiratoryRate?.let { String.format(Locale.US, "%.1f", it) } ?: "--", "rpm"),
             ),
         )
+    } else {
+        Label("Recovery")
+        Spacer(Modifier.height(16.dp))
+        PulseCard {
+            Text("Calibrating", style = PulseType.Headline.copy(fontSize = 24.sp))
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Recovery is measured against your own normal, so it unlocks after 5 nights of data. " +
+                    "Nights found so far: ${minOf(day.nightsOfData, 5)} of 5.",
+                style = PulseType.Body,
+            )
+            if (day.hasSleep) {
+                Spacer(Modifier.height(18.dp))
+                Label("Resting heart rate last night")
+                Spacer(Modifier.height(8.dp))
+                BpmValue(day.restingHr)
+            }
+        }
+    }
 
-        // Sleep
-        Spacer(Modifier.height(72.dp))
-        Label("Sleep")
-        Spacer(Modifier.height(24.dp))
+    // Sleep
+    Spacer(Modifier.height(72.dp))
+    Label("Sleep")
+    Spacer(Modifier.height(24.dp))
+    if (day.hasSleep) {
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             SleepRing(day.sleepPerformance, Modifier.size(250.dp), subtitle = formatDuration(day.sleepMinutes))
+        }
+        if (day.sleepWindow != null) {
+            Spacer(Modifier.height(14.dp))
+            Text(day.sleepWindow, style = PulseType.Caption, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
         Spacer(Modifier.height(28.dp))
         StatStrip(
@@ -139,50 +164,46 @@ private fun HomeContent(day: DayData) {
             Label("Sleep stages")
             Spacer(Modifier.height(18.dp))
             SleepStagesBar(day.stages)
+            if (day.sleepWindow != null) {
+                Spacer(Modifier.height(16.dp))
+                Text("Estimated from your heart rate and movement, not measured directly.", style = PulseType.Caption)
+            }
         }
-
-        // Strain
-        Spacer(Modifier.height(72.dp))
-        Label("Strain")
-        Spacer(Modifier.height(24.dp))
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            StrainRing(day.strain, Modifier.size(220.dp))
-        }
-        Spacer(Modifier.height(14.dp))
-        val target = strainTarget(day.recovery)
-        Text(
-            "Target ${formatStrain(target.start)} to ${formatStrain(target.endInclusive)} for this recovery",
-            style = PulseType.Caption, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(28.dp))
-        StatStrip(
-            listOf(
-                Stat("Calories", formatThousands(day.calories), "kcal"),
-                Stat("Steps", formatThousands(day.steps)),
-                Stat("Avg HR", "${day.avgHr}", "bpm"),
-            ),
-        )
-
     } else {
-        Label("Today so far")
-        Spacer(Modifier.height(16.dp))
-        StatStrip(
-            listOf(
-                Stat("Steps", formatThousands(day.steps)),
-                Stat("Calories", formatThousands(day.calories)),
-                Stat("Avg HR", if (day.avgHr > 0) "${day.avgHr}" else "--", "bpm"),
-            ),
-        )
-        Spacer(Modifier.height(16.dp))
         PulseCard {
-            Label("Coming next")
-            Spacer(Modifier.height(10.dp))
             Text(
-                "Sleep, recovery and strain scores need the band's sleep data. We are still working out how to read it.",
+                "No night found yet. Wear the band to sleep, then open Pulse in the morning. " +
+                    "It needs about 3 hours of heart-rate readings to spot a night.",
                 style = PulseType.Body,
             )
         }
     }
+
+    // Strain
+    Spacer(Modifier.height(72.dp))
+    Label("Strain")
+    Spacer(Modifier.height(24.dp))
+    if (day.hasStrain) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            StrainRing(day.strain, Modifier.size(220.dp))
+        }
+        if (day.hasRecovery) {
+            Spacer(Modifier.height(14.dp))
+            val target = strainTarget(day.recovery)
+            Text(
+                "Target ${formatStrain(target.start)} to ${formatStrain(target.endInclusive)} for this recovery",
+                style = PulseType.Caption, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Spacer(Modifier.height(28.dp))
+    }
+    StatStrip(
+        listOf(
+            Stat("Calories", formatThousands(day.calories)),
+            Stat("Steps", formatThousands(day.steps)),
+            Stat("Avg HR", if (day.avgHr > 0) "${day.avgHr}" else "--", "bpm"),
+        ),
+    )
 
     // Heart rate
     Spacer(Modifier.height(72.dp))

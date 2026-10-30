@@ -81,14 +81,14 @@ fun CoachScreen(ui: PulseUiState, repo: HealthRepository) {
             )
         } else {
             val day = remember(repo) { repo.day(LocalDate.now()) }
-            if (day.hasScores) {
+            if (day.hasRecovery) {
                 CoachContent(ui, day)
             } else {
                 PulseCard {
                     Label("Coming next")
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Your coach needs sleep and recovery data. Heart rate and steps are arriving; sleep is the next thing to work out.",
+                        "Your coach unlocks once recovery is ready. That takes 5 nights of sleep and heart-rate data. Nights so far: ${day.nightsOfData} of 5.",
                         style = PulseType.Body,
                     )
                 }

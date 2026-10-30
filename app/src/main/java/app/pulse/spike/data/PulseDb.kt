@@ -93,6 +93,16 @@ class PulseDb(context: Context) : SQLiteOpenHelper(context, "pulse.db", null, 1)
         }
     }
 
+    /** Steps per 15-minute block of a day (block 0 = midnight). */
+    @Synchronized
+    fun stepBlocks(day: LocalDate): Map<Int, Int> {
+        val out = HashMap<Int, Int>()
+        readableDatabase.rawQuery("SELECT idx, steps FROM steps WHERE day = ?", arrayOf(day.toString())).use { c ->
+            while (c.moveToNext()) out[c.getInt(0)] = c.getInt(1)
+        }
+        return out
+    }
+
     @Synchronized
     fun hasAnyData(): Boolean =
         DatabaseUtils.queryNumEntries(readableDatabase, "hr") > 0 || DatabaseUtils.queryNumEntries(readableDatabase, "steps") > 0

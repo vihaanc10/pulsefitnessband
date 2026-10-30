@@ -3,6 +3,7 @@ package app.pulse.spike.data
 import java.time.LocalDate
 import java.time.Duration
 import java.time.LocalTime
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -108,6 +109,8 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
 
     override val user = UserProfile("Vihaan", heightCm = 175, weightKg = 70)
 
+    private val nightCache = HashMap<LocalDate, SleepNight?>()
+
     override fun day(date: LocalDate): DayData {
         val points = db.heartRate(date)
         val bpms = points.map { it.bpm }
@@ -118,21 +121,84 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
             val fraction = bpm / 190.0
             if (fraction >= 0.5) zones[min(4, ((fraction - 0.5) / 0.1).toInt())] += 5
         }
+
+        val goal = 480
+        val night = nightFor(date)
+        val previous = (1..30).mapNotNull { nightFor(date.minusDays(it.toLong())) }
+        val efficiency = if (night == null) 0 else night.asleepMin * 100 / night.inBedMin
+        val performance = if (night == null) 0 else {
+            (0.6 * min(1.0, night.asleepMin / goal.toDouble()) * 100 + 0.4 * efficiency).roundToInt()
+        }
+        val consistency = if (night == null || previous.size < 2) 80 else {
+            val deviationMin = abs(night.firstSlot - previous.map { it.firstSlot }.average()) * 5
+            (100 - deviationMin / 1.8).coerceIn(0.0, 100.0).roundToInt()
+        }
+
+        // Recovery needs a personal baseline: 5 nights in total (PRD section 5).
+        val recovery = if (night != null && previous.size >= 4) recoveryFor(date, night, previous, performance) else null
+        val strain = if (bpms.isEmpty()) 0.0 else Analysis.strainFromHeartRate(bpms)
+
         return DayData(
-            date = date, recovery = 0, restingHr = restingHeartRate(bpms), hrvMs = null, respiratoryRate = null,
-            sleepPerformance = 0, sleepMinutes = 0, sleepGoalMinutes = 480, sleepEfficiency = 0, sleepConsistency = 0,
-            stages = SleepStages(0, 0, 0), strain = 0.0, calories = calories, steps = steps,
+            date = date,
+            recovery = recovery ?: 0,
+            restingHr = night?.restingHr ?: Analysis.lowestAverage(bpms),
+            hrvMs = null, respiratoryRate = null,
+            sleepPerformance = performance,
+            sleepMinutes = night?.asleepMin ?: 0,
+            sleepGoalMinutes = goal,
+            sleepEfficiency = efficiency,
+            sleepConsistency = consistency,
+            stages = SleepStages(night?.awakeMin ?: 0, night?.lightMin ?: 0, night?.deepMin ?: 0),
+            strain = strain, calories = calories, steps = steps,
             avgHr = if (bpms.isEmpty()) 0 else bpms.average().roundToInt(),
             maxHr = bpms.maxOrNull() ?: 0, currentHr = bpms.lastOrNull() ?: 0,
-            heartRate = points, zoneMinutes = zones.toList(), hasScores = false,
+            heartRate = points, zoneMinutes = zones.toList(),
+            hasSleep = night != null, hasRecovery = recovery != null, hasStrain = bpms.isNotEmpty(),
+            nightsOfData = previous.size + if (night != null) 1 else 0,
+            sleepWindow = night?.let {
+                "${formatClock(18 * 60 + it.firstSlot * 5)} to ${formatClock(18 * 60 + (it.lastSlot + 1) * 5)}"
+            },
         )
     }
 
-    /** The lowest average over 6 readings in a row (about 30 minutes), so one odd reading can't skew it. */
-    private fun restingHeartRate(bpms: List<Int>): Int {
-        if (bpms.isEmpty()) return 0
-        if (bpms.size < 6) return bpms.min()
-        return (0..bpms.size - 6).minOf { i -> bpms.subList(i, i + 6).average() }.roundToInt()
+    /** The night that ended on the morning of [date], or null if the readings don't show one. */
+    private fun nightFor(date: LocalDate): SleepNight? {
+        if (nightCache.containsKey(date)) return nightCache[date]
+        val night = computeNight(date)
+        nightCache[date] = night
+        return night
+    }
+
+    private fun computeNight(date: LocalDate): SleepNight? {
+        val hr = IntArray(Analysis.WINDOW_SLOTS)
+        for (p in db.heartRate(date.minusDays(1))) {
+            val slot = p.minuteOfDay / 5 - 216 // evening of the day before, from 18:00
+            if (slot in 0..71) hr[slot] = p.bpm
+        }
+        for (p in db.heartRate(date)) {
+            val slot = 72 + p.minuteOfDay / 5 // morning, up to 12:00
+            if (slot in 72 until Analysis.WINDOW_SLOTS) hr[slot] = p.bpm
+        }
+        val steps = DoubleArray(Analysis.WINDOW_SLOTS)
+        for ((block, n) in db.stepBlocks(date.minusDays(1))) {
+            if (block in 72..95) for (k in 0..2) steps[(block - 72) * 3 + k] = n / 3.0
+        }
+        for ((block, n) in db.stepBlocks(date)) {
+            if (block in 0..47) for (k in 0..2) steps[72 + block * 3 + k] = n / 3.0
+        }
+        return Analysis.detectSleep(hr, steps)
+    }
+
+    /**
+     * PRD section 5, with the inputs we don't have (SpO2 and the "how do I feel" slider) left out
+     * and the weights shared out again: resting heart rate vs your baseline 50%, sleep 37.5%, yesterday's strain 12.5%.
+     */
+    private fun recoveryFor(date: LocalDate, night: SleepNight, previous: List<SleepNight>, performance: Int): Int {
+        val baseline = previous.map { it.restingHr }.average()
+        val restingScore = (70 + (baseline - night.restingHr) * 10).coerceIn(0.0, 100.0)
+        val yesterdayStrain = Analysis.strainFromHeartRate(db.heartRate(date.minusDays(1)).map { it.bpm })
+        val strainScore = (100 - yesterdayStrain / 21 * 60).coerceIn(0.0, 100.0)
+        return (0.5 * restingScore + 0.375 * performance + 0.125 * strainScore).roundToInt()
     }
 
     private fun lastSyncText(millis: Long?): String {

@@ -87,53 +87,59 @@ private fun HealthContent(ui: PulseUiState, repo: HealthRepository) {
     Spacer(Modifier.height(20.dp))
 
     // Heart rate today
-    TrendCard("Heart rate", "${today.currentHr}", "bpm now", "Avg ${today.avgHr} / Max ${today.maxHr}" to PulseColors.TextSecondary) {
-        HeartRateChart(today.heartRate, today.restingHr, Modifier.fillMaxWidth().height(130.dp))
-        Spacer(Modifier.height(8.dp))
-        DayAxisLabels()
+    if (today.heartRate.isNotEmpty()) {
+        TrendCard("Heart rate", "${today.currentHr}", "bpm now", "Avg ${today.avgHr} / Max ${today.maxHr}" to PulseColors.TextSecondary) {
+            HeartRateChart(today.heartRate, today.restingHr, Modifier.fillMaxWidth().height(130.dp))
+            Spacer(Modifier.height(8.dp))
+            DayAxisLabels()
+        }
     }
 
-    if (today.hasScores) {
-        // Resting heart rate
-        val resting = data.map { it.restingHr.toFloat() }
+    // Resting heart rate (days that have heart-rate readings)
+    val withHr = data.filter { it.restingHr > 0 }
+    if (withHr.size >= 2) {
+        val resting = withHr.map { it.restingHr.toFloat() }
         TrendCard(
-            "Resting heart rate", "${today.restingHr}", "bpm",
-            delta(today.restingHr.toDouble(), resting.average(), higherIsBetter = false, unit = "bpm"),
+            "Resting heart rate", "${withHr.last().restingHr}", "bpm",
+            delta(withHr.last().restingHr.toDouble(), resting.average(), higherIsBetter = false, unit = "bpm"),
         ) {
             TrendLineChart(resting, PulseColors.Red, Modifier.fillMaxWidth().height(110.dp))
+            ChartAxis(withHr.map { dayLabel(it, range) })
+        }
+    }
+
+    // HRV
+    val hrv = data.mapNotNull { it.hrvMs?.toFloat() }
+    if (hrv.size >= 2) {
+        TrendCard(
+            "HRV", "${today.hrvMs ?: "--"}", "ms",
+            delta((today.hrvMs ?: 0).toDouble(), hrv.average(), higherIsBetter = true, unit = "ms"),
+        ) {
+            TrendLineChart(hrv, PulseColors.Green, Modifier.fillMaxWidth().height(110.dp))
             ChartAxis(labels)
         }
+    } else {
+        TrendCard("HRV", "--", "ms", "Not available from this band" to PulseColors.TextSecondary) {}
+    }
 
-        // HRV
-        val hrv = data.mapNotNull { it.hrvMs?.toFloat() }
-        if (hrv.size >= 2) {
-            TrendCard(
-                "HRV", "${today.hrvMs ?: "--"}", "ms",
-                delta((today.hrvMs ?: 0).toDouble(), hrv.average(), higherIsBetter = true, unit = "ms"),
-            ) {
-                TrendLineChart(hrv, PulseColors.Green, Modifier.fillMaxWidth().height(110.dp))
-                ChartAxis(labels)
-            }
-        } else {
-            TrendCard("HRV", "--", "ms", "Not available from this band" to PulseColors.TextSecondary) {}
-        }
-
-        // Respiratory rate
-        val breathing = data.mapNotNull { it.respiratoryRate?.toFloat() }
-        if (breathing.size >= 2) {
-            TrendCard(
-                "Respiratory rate", String.format(Locale.US, "%.1f", today.respiratoryRate ?: 0.0), "rpm",
-                delta(today.respiratoryRate ?: 0.0, breathing.average(), higherIsBetter = false, unit = "rpm"),
-            ) {
-                TrendLineChart(breathing, PulseColors.Sleep, Modifier.fillMaxWidth().height(110.dp))
-                ChartAxis(labels)
-            }
-        }
-
-        // Sleep trends
+    // Respiratory rate
+    val breathing = data.mapNotNull { it.respiratoryRate?.toFloat() }
+    if (breathing.size >= 2) {
         TrendCard(
-            "Sleep", formatDuration(today.sleepMinutes), "last night",
-            delta(today.sleepMinutes.toDouble(), data.map { it.sleepMinutes }.average(), higherIsBetter = true, unit = "min"),
+            "Respiratory rate", String.format(Locale.US, "%.1f", today.respiratoryRate ?: 0.0), "rpm",
+            delta(today.respiratoryRate ?: 0.0, breathing.average(), higherIsBetter = false, unit = "rpm"),
+        ) {
+            TrendLineChart(breathing, PulseColors.Sleep, Modifier.fillMaxWidth().height(110.dp))
+            ChartAxis(labels)
+        }
+    }
+
+    // Sleep trends (nights we found)
+    val nights = data.filter { it.sleepMinutes > 0 }
+    if (nights.isNotEmpty()) {
+        TrendCard(
+            "Sleep", formatDuration(nights.last().sleepMinutes), "last night",
+            delta(nights.last().sleepMinutes.toDouble(), nights.map { it.sleepMinutes }.average(), higherIsBetter = true, unit = "min"),
         ) {
             BarChart(
                 bars = data.map { listOf(it.stages.deepMin / 60f, it.stages.lightMin / 60f) },
@@ -147,21 +153,22 @@ private fun HealthContent(ui: PulseUiState, repo: HealthRepository) {
                 Legend("Light", PulseColors.StageLight)
             }
         }
+    }
 
-        // Weekly activity (strain)
+    // Activity (strain)
+    if (data.any { it.strain > 0 }) {
         TrendCard(
             "Activity", formatStrain(today.strain), "strain",
             delta(today.strain, data.map { it.strain }.average(), higherIsBetter = true, unit = "strain"),
         ) {
             BarChart(data.map { listOf(it.strain.toFloat()) }, listOf(PulseColors.Strain), Modifier.fillMaxWidth().height(120.dp), labels)
         }
-
     }
 
     // Calories
     TrendCard(
-        "Calories", formatThousands(today.calories), "kcal",
-        delta(today.calories.toDouble(), data.map { it.calories }.average(), higherIsBetter = true, unit = "kcal"),
+        "Calories", formatThousands(today.calories), "",
+        delta(today.calories.toDouble(), data.map { it.calories }.average(), higherIsBetter = true, unit = ""),
     ) {
         BarChart(data.map { listOf(it.calories.toFloat()) }, listOf(PulseColors.Yellow), Modifier.fillMaxWidth().height(120.dp), labels)
     }

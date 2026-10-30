@@ -28,8 +28,14 @@ data class DayData(
     val currentHr: Int,
     val heartRate: List<HrPoint>,
     val zoneMinutes: List<Int>, // 5 zones
-    /** False for real band data until sleep, recovery and strain can be worked out. Screens then show only what exists. */
-    val hasScores: Boolean = true,
+    /** Real data can lack a night of sleep, or a recovery baseline. Screens then show only what exists. */
+    val hasSleep: Boolean = true,
+    val hasRecovery: Boolean = true,
+    val hasStrain: Boolean = true,
+    /** How many nights of sleep we have found (recovery unlocks at 5). */
+    val nightsOfData: Int = 0,
+    /** For example "11:20 pm to 6:40 am". Only set when sleep was estimated from the readings. */
+    val sleepWindow: String? = null,
 )
 
 data class DeviceStatus(

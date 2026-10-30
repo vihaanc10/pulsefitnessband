@@ -1,0 +1,107 @@
+package app.pulse.spike.data
+
+import kotlin.math.exp
+import kotlin.math.roundToInt
+
+/**
+ * One night of sleep, estimated from heart rate and movement (the band's own sleep data is not
+ * decoded yet). Slots are 5 minutes long, counted from 18:00 the evening before.
+ */
+data class SleepNight(
+    val firstSlot: Int,
+    val lastSlot: Int,
+    val asleepMin: Int,
+    val awakeMin: Int,
+    val lightMin: Int,
+    val deepMin: Int,
+    val restingHr: Int,
+    val coveragePercent: Int, // share of the night that really had a heart-rate reading
+) {
+    val inBedMin: Int get() = (lastSlot - firstSlot + 1) * 5
+}
+
+/** Our own first-guess formulas. They are meant to be tuned against real nights. */
+object Analysis {
+    /** 18:00 the evening before up to 12:00 the next day, in 5-minute slots. */
+    const val WINDOW_SLOTS = 216
+
+    /**
+     * [hr] has one reading per slot (0 = none). [stepsPerSlot] is the steps taken in each slot.
+     * Sleep = the longest stretch of low, steady heart rate with no movement, joined across gaps of up to 30 minutes.
+     */
+    fun detectSleep(hr: IntArray, stepsPerSlot: DoubleArray): SleepNight? {
+        val valid = hr.filter { it in 30..220 }
+        if (valid.size < 36) return null // under 3 hours of readings in the whole window
+        val sorted = valid.sorted()
+        val baseline = sorted[(sorted.size * 0.2).toInt()] // roughly the lowest fifth of the readings
+
+        val sleepLike = BooleanArray(hr.size) { i -> hr[i] in 30..220 && hr[i] <= baseline + 10 && stepsPerSlot[i] < 4.0 }
+
+        var bestFirst = -1
+        var bestLast = -1
+        var bestCount = 0
+        var runFirst = -1
+        var runLast = -1
+        var runCount = 0
+        for (i in hr.indices) {
+            if (!sleepLike[i]) continue
+            if (runFirst >= 0 && i - runLast <= 7) {
+                runLast = i
+                runCount++
+            } else {
+                runFirst = i
+                runLast = i
+                runCount = 1
+            }
+            if (runCount > bestCount) {
+                bestCount = runCount
+                bestFirst = runFirst
+                bestLast = runLast
+            }
+        }
+        if (bestCount < 36) return null // less than 3 hours of sleep-like readings
+
+        var deep = 0
+        var light = 0
+        val sleepHr = ArrayList<Int>()
+        for (i in bestFirst..bestLast) {
+            if (!sleepLike[i]) continue
+            sleepHr.add(hr[i])
+            if (hr[i] <= baseline + 3) deep++ else light++
+        }
+        val total = bestLast - bestFirst + 1
+        val withReading = (bestFirst..bestLast).count { hr[it] in 30..220 }
+        return SleepNight(
+            firstSlot = bestFirst, lastSlot = bestLast,
+            asleepMin = (deep + light) * 5, awakeMin = (total - deep - light) * 5,
+            lightMin = light * 5, deepMin = deep * 5,
+            restingHr = lowestAverage(sleepHr),
+            coveragePercent = withReading * 100 / total,
+        )
+    }
+
+    /** The lowest average over 6 readings in a row (about 30 minutes), so one odd reading can't skew it. */
+    fun lowestAverage(values: List<Int>, window: Int = 6): Int {
+        if (values.isEmpty()) return 0
+        if (values.size < window) return values.min()
+        return (0..values.size - window).minOf { i -> values.subList(i, i + window).average() }.roundToInt()
+    }
+
+    /** 0-21, rising fast at first and flattening, from time spent in the heart-rate zones. */
+    fun strainFromHeartRate(bpms: List<Int>, maxHr: Int = 190): Double {
+        var load = 0.0
+        for (bpm in bpms) {
+            val fraction = bpm / maxHr.toDouble()
+            val weight = when {
+                fraction >= 0.9 -> 8.0
+                fraction >= 0.8 -> 5.0
+                fraction >= 0.7 -> 3.0
+                fraction >= 0.6 -> 2.0
+                fraction >= 0.5 -> 1.0
+                else -> 0.0
+            }
+            load += 5 * weight // each reading stands for 5 minutes
+        }
+        return Math.round(21 * (1 - exp(-load / 450.0)) * 10) / 10.0
+    }
+}
