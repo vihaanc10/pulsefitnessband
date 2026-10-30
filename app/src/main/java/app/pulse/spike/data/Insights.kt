@@ -72,3 +72,29 @@ fun coachAnswers(day: DayData): List<Pair<String, String>> = listOf(
     "How do I sleep better?" to
         "Keep a steady bedtime, finish heavy training earlier and keep the room cool and dark.",
 )
+
+fun energyLabel(energy: Int): String = when {
+    energy >= 70 -> "Plenty left"
+    energy >= 40 -> "Steady"
+    energy >= 20 -> "Running low"
+    else -> "Gassed"
+}
+
+fun outlookText(day: DayData): String = buildString {
+    if (day.hasRecovery) {
+        val target = strainTarget(day.recovery)
+        append(recoverySummary(day.recovery))
+        append(" Aim for a strain of ${formatStrain(target.start)} to ${formatStrain(target.endInclusive)}.")
+    } else {
+        append("Keep wearing your band, day and night. Recovery and your daily advice unlock after 5 nights of data.")
+    }
+    if (day.hasEnergy) {
+        when {
+            day.energy < 20 -> append(" Your energy is nearly empty: take it easy and protect tonight's sleep.")
+            day.energy < 40 -> append(" Your energy is getting low, so keep the rest of the day light.")
+        }
+    }
+}
+
+/** Minute of the evening (0-1439) to be in bed for a 6:30 am wake-up, with 15 minutes to fall asleep. */
+fun suggestedBedtimeMinute(day: DayData): Int = ((6 * 60 + 30 - sleepNeedMinutes(day) - 15) % 1440 + 1440) % 1440

@@ -130,6 +130,18 @@ private fun SleepContent(day: DayData, repo: HealthRepository, date: LocalDate, 
         }
     }
 
+    val counted = week.filter { it.sleepMinutes > 0 }
+    if (counted.size >= 2) {
+        val debt = counted.sumOf { maxOf(0, it.sleepGoalMinutes - it.sleepMinutes) }
+        Spacer(Modifier.height(14.dp))
+        StatStrip(
+            listOf(
+                Stat("Sleep debt", if (debt == 0) "None" else formatDuration(debt)),
+                Stat("Nights", "${counted.size}", "of 7"),
+            ),
+        )
+    }
+
     if (isToday && day.hasSleep) {
         Spacer(Modifier.height(14.dp))
         PulseCard {

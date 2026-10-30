@@ -89,7 +89,7 @@ private fun HealthContent(ui: PulseUiState, repo: HealthRepository) {
     // Heart rate today
     if (today.heartRate.isNotEmpty()) {
         TrendCard("Heart rate", "${today.currentHr}", "bpm now", "Avg ${today.avgHr} / Max ${today.maxHr}" to PulseColors.TextSecondary) {
-            HeartRateChart(today.heartRate, today.restingHr, Modifier.fillMaxWidth().height(130.dp))
+            HeartRateChart(today.heartRate, today.restingHr, Modifier.fillMaxWidth().height(130.dp), sleepSpan = today.sleepSpan)
             Spacer(Modifier.height(8.dp))
             DayAxisLabels()
         }

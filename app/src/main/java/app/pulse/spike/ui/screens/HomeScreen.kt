@@ -35,6 +35,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pulse.spike.data.DayData
+import app.pulse.spike.data.outlookText
+import app.pulse.spike.data.energyLabel
 import app.pulse.spike.data.HealthRepository
 import app.pulse.spike.data.formatDuration
 import app.pulse.spike.data.formatStrain
@@ -44,6 +46,8 @@ import app.pulse.spike.data.recoverySummary
 import app.pulse.spike.data.strainTarget
 import app.pulse.spike.ui.PulseUiState
 import app.pulse.spike.ui.components.DashboardHeader
+import app.pulse.spike.ui.components.TrendLineChart
+import app.pulse.spike.ui.components.BarChart
 import app.pulse.spike.ui.components.DayAxisLabels
 import app.pulse.spike.ui.components.EmptyState
 import app.pulse.spike.ui.components.HeartRateChart
@@ -117,15 +121,7 @@ private fun HomeContent(day: DayData, ui: PulseUiState) {
     PulseCard {
         Label("Today's outlook", color = if (day.hasRecovery) recoveryColor(day.recovery) else PulseColors.TextSecondary)
         Spacer(Modifier.height(10.dp))
-        Text(
-            if (day.hasRecovery) {
-                val target = strainTarget(day.recovery)
-                recoverySummary(day.recovery) + " Aim for a strain of ${formatStrain(target.start)} to ${formatStrain(target.endInclusive)}."
-            } else {
-                "Keep wearing your band, day and night. Recovery and your daily advice unlock after 5 nights of data."
-            },
-            style = PulseType.Body,
-        )
+        Text(outlookText(day), style = PulseType.Body)
     }
 
     // Recovery
@@ -177,10 +173,42 @@ private fun HomeContent(day: DayData, ui: PulseUiState) {
     StatStrip(
         listOf(
             Stat("Calories", formatThousands(day.calories)),
+            Stat("Active", "${day.zoneMinutes.drop(1).sum()}", "min"),
             Stat("Avg HR", if (day.avgHr > 0) "${day.avgHr}" else "--", "bpm"),
-            Stat("Max HR", if (day.maxHr > 0) "${day.maxHr}" else "--", "bpm"),
         ),
     )
+
+    // Energy: starts from how rested you are, drains with effort.
+    if (day.hasEnergy) {
+        Spacer(Modifier.height(64.dp))
+        Label("Energy")
+        Spacer(Modifier.height(16.dp))
+        PulseCard {
+            val tint = when {
+                day.energy >= 40 -> PulseColors.Green
+                day.energy >= 20 -> PulseColors.Yellow
+                else -> PulseColors.Red
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Column {
+                    Label("Right now")
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("${day.energy}", style = PulseType.Display)
+                        Text("%", style = PulseType.Unit, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+                    }
+                }
+                Text(energyLabel(day.energy), style = PulseType.Body, color = tint, modifier = Modifier.padding(top = 4.dp))
+            }
+            Spacer(Modifier.height(18.dp))
+            TrendLineChart(day.energySeries, tint, Modifier.fillMaxWidth().height(110.dp))
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Starts from how well you slept, drains with time awake and effort. Hard training after a short night leaves you gassed.",
+                style = PulseType.Caption,
+            )
+        }
+    }
 
     // Steps
     Spacer(Modifier.height(64.dp))
@@ -193,6 +221,15 @@ private fun HomeContent(day: DayData, ui: PulseUiState) {
         }
         Spacer(Modifier.height(18.dp))
         GoalBar(day.steps / 10000f)
+        if (day.stepsByHour.any { it > 0 }) {
+            Spacer(Modifier.height(24.dp))
+            BarChart(
+                bars = day.stepsByHour.map { listOf(it.toFloat()) },
+                colors = listOf(PulseColors.Green),
+                modifier = Modifier.fillMaxWidth().height(100.dp),
+                labels = List(24) { h -> if (h % 12 == 0) (if (h == 0) "12a" else "12p") else "" },
+            )
+        }
     }
 
     // Heart rate
@@ -213,7 +250,7 @@ private fun HomeContent(day: DayData, ui: PulseUiState) {
             }
         }
         Spacer(Modifier.height(20.dp))
-        HeartRateChart(day.heartRate, day.restingHr, Modifier.fillMaxWidth().height(150.dp))
+        HeartRateChart(day.heartRate, day.restingHr, Modifier.fillMaxWidth().height(150.dp), sleepSpan = day.sleepSpan)
         Spacer(Modifier.height(8.dp))
         DayAxisLabels()
         Spacer(Modifier.height(26.dp))

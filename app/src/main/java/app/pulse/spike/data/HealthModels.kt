@@ -36,6 +36,14 @@ data class DayData(
     val nightsOfData: Int = 0,
     /** For example "11:20 pm to 6:40 am". Only set when sleep was estimated from the readings. */
     val sleepWindow: String? = null,
+    /** Minutes of this day (0-1440) that were spent asleep, so charts can shade them. */
+    val sleepSpan: IntRange? = null,
+    /** Energy 0-100 right now, and its curve from waking up (one value per 5 minutes). */
+    val energy: Int = 0,
+    val energySeries: List<Float> = emptyList(),
+    val hasEnergy: Boolean = false,
+    /** Steps taken in each of the 24 hours (empty if unknown). */
+    val stepsByHour: List<Int> = emptyList(),
 )
 
 data class DeviceStatus(

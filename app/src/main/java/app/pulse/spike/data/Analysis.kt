@@ -61,6 +61,19 @@ object Analysis {
         }
         if (bestCount < 36) return null // less than 3 hours of sleep-like readings
 
+        // Trim ragged edges: the night starts and ends where sleep-like readings are the rule, not the exception.
+        fun solid(i: Int, direction: Int): Boolean {
+            var count = 0
+            for (k in 0 until 6) {
+                val j = i + direction * k
+                if (j in hr.indices && sleepLike[j]) count++
+            }
+            return count >= 4
+        }
+        while (bestFirst < bestLast && (!sleepLike[bestFirst] || !solid(bestFirst, 1))) bestFirst++
+        while (bestLast > bestFirst && (!sleepLike[bestLast] || !solid(bestLast, -1))) bestLast--
+        if ((bestFirst..bestLast).count { sleepLike[it] } < 36) return null
+
         val sleepHr = ArrayList<Int>()
         for (i in bestFirst..bestLast) if (sleepLike[i]) sleepHr.add(hr[i])
         // Stages are relative to this night: the calmest quarter of the readings counts as deep sleep.
@@ -91,16 +104,39 @@ object Analysis {
         var load = 0.0
         for (bpm in bpms) {
             val fraction = bpm / maxHr.toDouble()
-            val weight = when {
-                fraction >= 0.9 -> 8.0
-                fraction >= 0.8 -> 5.0
-                fraction >= 0.7 -> 3.0
-                fraction >= 0.6 -> 2.0
-                fraction >= 0.5 -> 1.0
-                else -> 0.0
-            }
-            load += 5 * weight // each reading stands for 5 minutes
+            load += 5 * zoneWeight(fraction) // each reading stands for 5 minutes
         }
         return Math.round(21 * (1 - exp(-load / 450.0)) * 10) / 10.0
+    }
+
+    /** How hard a heart rate works the body, by share of maximum: 0 below the zones up to 8 in the top zone. */
+    fun zoneWeight(fraction: Double): Double = when {
+        fraction >= 0.9 -> 8.0
+        fraction >= 0.8 -> 5.0
+        fraction >= 0.7 -> 3.0
+        fraction >= 0.6 -> 2.0
+        fraction >= 0.5 -> 1.0
+        else -> 0.0
+    }
+
+    /**
+     * Energy from 0 to 100 across the day, one value per 5 minutes from waking up. It starts at
+     * [startEnergy] (how rested you are) and drains with time awake and with effort, so a hard
+     * workout after a short night leaves you "gassed". Our own first guess, meant to be tuned.
+     */
+    fun energyCurve(points: List<HrPoint>, wakeMinute: Int, startEnergy: Double, maxHr: Int = 190): List<Float> {
+        val lastMinute = points.maxOfOrNull { it.minuteOfDay } ?: return emptyList()
+        val byMinute = points.associateBy { it.minuteOfDay }
+        var energy = startEnergy.coerceIn(0.0, 100.0)
+        val out = ArrayList<Float>()
+        var minute = wakeMinute - wakeMinute % 5
+        while (minute <= lastMinute) {
+            val bpm = byMinute[minute]?.bpm
+            val effort = if (bpm == null) 0.0 else zoneWeight(bpm / maxHr.toDouble())
+            energy = (energy - (0.15 + effort * 0.25)).coerceAtLeast(0.0)
+            out.add(energy.toFloat())
+            minute += 5
+        }
+        return out
     }
 }

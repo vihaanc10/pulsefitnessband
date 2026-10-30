@@ -53,6 +53,7 @@ fun HeartRateChart(
     restingHr: Int,
     modifier: Modifier = Modifier,
     color: Color = PulseColors.Red,
+    sleepSpan: IntRange? = null,
 ) {
     val reveal = remember { Animatable(0f) }
     LaunchedEffect(points) {
@@ -61,14 +62,20 @@ fun HeartRateChart(
     }
     Canvas(modifier) {
         if (points.size < 2) return@Canvas
-        val minBpm = 40f
-        val maxBpm = max(120f, (points.maxOf { it.bpm } + 10).toFloat())
+        val minBpm = max(30f, (points.minOf { it.bpm } - 8).toFloat())
+        val maxBpm = max(minBpm + 40f, (points.maxOf { it.bpm } + 10).toFloat())
         fun x(p: HrPoint) = p.minuteOfDay / 1440f * size.width
         fun y(bpm: Int) = size.height - ((bpm - minBpm) / (maxBpm - minBpm)).coerceIn(0f, 1f) * size.height
 
         val hairline = 1.dp.toPx()
-        for (guide in listOf(60, 100, 140)) {
-            drawLine(PulseColors.Border, Offset(0f, y(guide)), Offset(size.width, y(guide)), strokeWidth = hairline)
+        if (sleepSpan != null) {
+            val left = sleepSpan.first / 1440f * size.width
+            val right = sleepSpan.last / 1440f * size.width
+            drawRect(PulseColors.Sleep.copy(alpha = 0.10f), topLeft = Offset(left, 0f), size = Size(right - left, size.height))
+        }
+        for (g in 1..3) {
+            val gy = size.height * g / 4f
+            drawLine(PulseColors.Border, Offset(0f, gy), Offset(size.width, gy), strokeWidth = hairline)
         }
         drawLine(
             PulseColors.TextTertiary, Offset(0f, y(restingHr)), Offset(size.width, y(restingHr)),
@@ -94,7 +101,15 @@ fun HeartRateChart(
                     continue
                 }
                 val line = Path()
-                segment.forEachIndexed { i, p -> if (i == 0) line.moveTo(x(p), y(p.bpm)) else line.lineTo(x(p), y(p.bpm)) }
+                segment.forEachIndexed { i, p ->
+                    if (i == 0) {
+                        line.moveTo(x(p), y(p.bpm))
+                    } else {
+                        val before = segment[i - 1]
+                        val midX = (x(before) + x(p)) / 2f
+                        line.cubicTo(midX, y(before.bpm), midX, y(p.bpm), x(p), y(p.bpm))
+                    }
+                }
                 val area = Path().apply {
                     addPath(line)
                     lineTo(x(segment.last()), size.height)

@@ -65,6 +65,11 @@ class SampleHealthRepository : HealthRepository {
             if (fraction >= 0.5) zones[min(4, ((fraction - 0.5) / 0.1).toInt())] += 5
         }
 
+        val stepWeights = List(24) { if (it in 7..21) 1 + rnd.nextInt(9) else 0 }
+        val stepsByHour = stepWeights.map { it * steps / stepWeights.sum() }
+        val startEnergy = 0.5 * recovery + 0.5 * performance
+        val energySeries = Analysis.energyCurve(series, 7 * 60, startEnergy)
+
         return DayData(
             date = date, recovery = recovery, restingHr = restingHr, hrvMs = hrv, respiratoryRate = respiratory,
             sleepPerformance = performance, sleepMinutes = sleepMinutes, sleepGoalMinutes = goal,
@@ -72,6 +77,9 @@ class SampleHealthRepository : HealthRepository {
             strain = strain, calories = calories, steps = steps,
             avgHr = bpms.average().roundToInt(), maxHr = bpms.max(), currentHr = bpms.last(),
             heartRate = series, zoneMinutes = zones.toList(),
+            sleepSpan = 0..(7 * 60),
+            energy = energySeries.lastOrNull()?.roundToInt() ?: startEnergy.roundToInt(),
+            energySeries = energySeries, hasEnergy = energySeries.isNotEmpty(), stepsByHour = stepsByHour,
         )
     }
 
@@ -138,6 +146,17 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
         val recovery = if (night != null && previous.size >= 4) recoveryFor(date, night, previous, performance) else null
         val strain = if (bpms.isEmpty()) 0.0 else Analysis.strainFromHeartRate(bpms)
 
+        // Energy starts from how rested you are at waking up.
+        val wakeMinute = if (night != null) (18 * 60 + (night.lastSlot + 1) * 5 - 1440).coerceIn(0, 1439) else 7 * 60
+        val startEnergy = when {
+            recovery != null -> 0.5 * recovery + 0.5 * performance
+            night != null -> performance.toDouble()
+            else -> 70.0
+        }
+        val energySeries = Analysis.energyCurve(points, wakeMinute, startEnergy)
+        val hours = IntArray(24)
+        for ((block, n) in db.stepBlocks(date)) if (block in 0..95) hours[block / 4] += n
+
         return DayData(
             date = date,
             recovery = recovery ?: 0,
@@ -158,6 +177,15 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
             sleepWindow = night?.let {
                 "${formatClock(18 * 60 + it.firstSlot * 5)} to ${formatClock(18 * 60 + (it.lastSlot + 1) * 5)}"
             },
+            sleepSpan = night?.let {
+                val from = (18 * 60 + it.firstSlot * 5 - 1440).coerceAtLeast(0)
+                val to = (18 * 60 + (it.lastSlot + 1) * 5 - 1440).coerceAtMost(1440)
+                if (to > from) from..to else null
+            },
+            energy = energySeries.lastOrNull()?.roundToInt() ?: startEnergy.roundToInt(),
+            energySeries = energySeries,
+            hasEnergy = energySeries.isNotEmpty(),
+            stepsByHour = hours.toList(),
         )
     }
 
