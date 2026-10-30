@@ -70,9 +70,18 @@ jobs:
           path: Pulse.apk
 
       - name: Publish on the Releases page
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete latest --yes --cleanup-tag || true
-          gh release create latest Pulse.apk --title "Pulse (latest)" \
-            --notes "Download Pulse.apk, open it on your Android phone and tap Install. See the README for the two-minute steps."
+          set +e
+          : > publish.log
+          gh release delete latest --yes --cleanup-tag >> publish.log 2>&1
+          sleep 3
+          gh release create latest Pulse.apk --target "$GITHUB_SHA" --title "Pulse (latest)" \
+            --notes "Download Pulse.apk, open it on your Android phone and tap Install. See the README for the two-minute steps." >> publish.log 2>&1
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            while IFS= read -r line; do echo "::error::${line:0:800}"; done < publish.log
+            exit $rc
+          fi
