@@ -53,6 +53,16 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         ui.bandSaved = db.getMeta("band_address") != null
         ui.syncAction = { syncNow() }
         ui.removeDeviceAction = { deleteData -> removeDevice(deleteData) }
+        // A new install shows the welcome screen. If a profile already exists (an update), skip it.
+        ui.onboarded = db.getMeta("onboarded") == "true" || db.getMeta("profile_name") != null
+        ui.completeOnboarding = { profile, metric ->
+            db.saveProfile(profile)
+            db.setMeta("units_metric", metric.toString())
+            db.setMeta("onboarded", "true")
+            ui.metricUnits = metric
+            ui.onboarded = true
+            ui.dataVersion += 1
+        }
         for (key in listOf("recovery", "bedtime", "battery", "sync")) {
             db.getMeta("notify_$key")?.let { ui.notifications[key] = it == "true" }
         }

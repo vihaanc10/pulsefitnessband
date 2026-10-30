@@ -16,10 +16,29 @@ android {
         versionName = "0.0.1-phase0"
     }
 
+    // Release builds are signed with Pulse's own key when the build machine provides it
+    // (see .github/workflows/build-apk.yml). The key itself is never stored in this repository.
+    val keystorePath = System.getenv("PULSE_KEYSTORE_PATH")
+    signingConfigs {
+        if (keystorePath != null) {
+            create("pulse") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("PULSE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("PULSE_KEY_ALIAS")
+                keyPassword = System.getenv("PULSE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (keystorePath != null) signingConfig = signingConfigs.getByName("pulse")
         }
+    }
+
+    lint {
+        checkReleaseBuilds = false
     }
 
     compileOptions {

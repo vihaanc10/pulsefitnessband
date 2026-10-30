@@ -82,7 +82,9 @@ fun PulseApp(vm: SpikeViewModel) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        if (ui.addDeviceOpen) {
+        if (!ui.onboarded) {
+            OnboardingScreen(ui)
+        } else if (ui.addDeviceOpen) {
             AddDeviceScreen(vm, onClose = { ui.addDeviceOpen = false })
         } else if (ui.labOpen) {
             val current = connection

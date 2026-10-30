@@ -33,6 +33,10 @@ class PulseUiState {
 
     var addDeviceOpen by mutableStateOf(false)
 
+    /** False on a brand-new install until the welcome screen has been filled in. */
+    var onboarded by mutableStateOf(true)
+    var completeOnboarding: ((app.pulse.spike.data.UserProfile, Boolean) -> Unit)? = null
+
     /** The logo intro shows once each time the app starts. */
     var introDone by mutableStateOf(false)
 

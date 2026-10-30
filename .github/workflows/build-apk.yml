@@ -21,11 +21,27 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Prepare the signing key (only if you added it in GitHub settings)
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.PULSE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/pulse.jks"
+            echo "PULSE_KEYSTORE_PATH=$RUNNER_TEMP/pulse.jks" >> "$GITHUB_ENV"
+            echo "SIGNED=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Build the app
         shell: bash
+        env:
+          PULSE_KEYSTORE_PASSWORD: ${{ secrets.PULSE_KEYSTORE_PASSWORD }}
+          PULSE_KEY_ALIAS: ${{ secrets.PULSE_KEY_ALIAS }}
+          PULSE_KEY_PASSWORD: ${{ secrets.PULSE_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon 2>&1 | tee build.log
+          if [ "$SIGNED" = "true" ]; then TASK=assembleRelease; else TASK=assembleDebug; fi
+          ./gradlew $TASK --no-daemon 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
 
       - name: Show the errors
@@ -35,7 +51,13 @@ jobs:
           grep -E "^e: |error:|AAPT|What went wrong|Resource|Execution failed" build.log | head -25 | while IFS= read -r line; do echo "::error::${line:0:900}"; done
 
       - name: Name the install file
-        run: cp app/build/outputs/apk/debug/app-debug.apk Pulse.apk
+        shell: bash
+        run: |
+          if [ "$SIGNED" = "true" ]; then
+            cp app/build/outputs/apk/release/app-release.apk Pulse.apk
+          else
+            cp app/build/outputs/apk/debug/app-debug.apk Pulse.apk
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
