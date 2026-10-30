@@ -1,6 +1,7 @@
 package app.pulse.spike.data
 
 import kotlin.math.exp
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
@@ -138,5 +139,33 @@ object Analysis {
             minute += 5
         }
         return out
+    }
+
+    /** Calories burned per minute at a heart rate (Keytel et al. formula, which gives kilojoules). */
+    fun kcalPerMinute(bpm: Int, user: UserProfile): Double {
+        val kilojoules = if (user.male) {
+            -55.0969 + 0.6309 * bpm + 0.1988 * user.weightKg + 0.2017 * user.ageYears
+        } else {
+            -20.4022 + 0.4472 * bpm - 0.1263 * user.weightKg + 0.074 * user.ageYears
+        }
+        return kilojoules / 4.184
+    }
+
+    /** Resting burn per minute (Mifflin-St Jeor). */
+    fun restingKcalPerMinute(user: UserProfile): Double =
+        (10 * user.weightKg + 6.25 * user.heightCm - 5 * user.ageYears + (if (user.male) 5 else -161)) / 1440.0
+
+    /**
+     * Total calories so far: resting burn for the minutes that have passed, plus the extra burn
+     * whenever heart rate is above half of maximum. An estimate, not a measurement.
+     */
+    fun caloriesEstimate(bpms: List<Int>, elapsedMinutes: Int, user: UserProfile): Int {
+        val resting = restingKcalPerMinute(user)
+        var active = 0.0
+        for (bpm in bpms) {
+            if (bpm < 0.5 * user.maxHr) continue
+            active += max(0.0, kcalPerMinute(bpm, user) - resting) * 5
+        }
+        return (resting * elapsedMinutes + active).roundToInt()
     }
 }

@@ -43,6 +43,10 @@ class PulseUiState {
     var persistNotification: ((String, Boolean) -> Unit)? = null
     var testNotification: (() -> Boolean)? = null
 
+    /** Set by the ViewModel: saves the edited profile, and remembers metric / imperial. */
+    var saveProfile: ((app.pulse.spike.data.UserProfile) -> Unit)? = null
+    var persistUnits: ((Boolean) -> Unit)? = null
+
     /** Set by the ViewModel: starts a sync. */
     var syncAction: (() -> Unit)? = null
     var coachQuestion by mutableStateOf<Int?>(null)

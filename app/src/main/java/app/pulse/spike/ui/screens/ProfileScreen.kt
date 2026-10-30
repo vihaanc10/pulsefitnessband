@@ -21,6 +21,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
+import app.pulse.spike.data.UserProfile
+import java.util.Locale
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -56,6 +61,7 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
     val device = repo.device
     var confirmRemove by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
+    var editingProfile by remember { mutableStateOf(false) }
 
     Column(
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
@@ -127,21 +133,41 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
         }
         Spacer(Modifier.height(28.dp))
 
-        // Units
+        // Body
+        Label("Body")
+        Spacer(Modifier.height(12.dp))
+        val heightText = if (ui.metricUnits) {
+            "${user.heightCm.roundToInt()} cm"
+        } else {
+            val inches = (user.heightCm / 2.54).roundToInt()
+            "${inches / 12} ft ${inches % 12} in"
+        }
+        val weightText = if (ui.metricUnits) {
+            String.format(Locale.US, "%.1f kg", user.weightKg)
+        } else {
+            String.format(Locale.US, "%.1f lb", user.weightKg * 2.20462)
+        }
+        StatStrip(listOf(Stat("Height", heightText), Stat("Weight", weightText), Stat("Age", "${user.ageYears}")))
+        Spacer(Modifier.height(14.dp))
+        if (!ui.useSample) {
+            PulseButton("Edit height, weight and age", onClick = { editingProfile = true }, filled = false)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Used for calories and heart-rate zones. Maximum heart rate is 220 minus your age.",
+                style = PulseType.Caption,
+            )
+            Spacer(Modifier.height(20.dp))
+        }
         Label("Units")
         Spacer(Modifier.height(12.dp))
         SegmentedControl(
             options = listOf("Metric", "Imperial"),
             selectedIndex = if (ui.metricUnits) 0 else 1,
-            onSelect = { ui.metricUnits = it == 0 },
+            onSelect = {
+                ui.metricUnits = it == 0
+                ui.persistUnits?.invoke(it == 0)
+            },
         )
-        Spacer(Modifier.height(12.dp))
-        val heightText = if (ui.metricUnits) "${user.heightCm} cm" else {
-            val inches = (user.heightCm / 2.54).roundToInt()
-            "${inches / 12} ft ${inches % 12} in"
-        }
-        val weightText = if (ui.metricUnits) "${user.weightKg} kg" else "${(user.weightKg * 2.20462).roundToInt()} lb"
-        StatStrip(listOf(Stat("Height", heightText), Stat("Weight", weightText)))
         Spacer(Modifier.height(28.dp))
 
         // Notifications
@@ -188,6 +214,25 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
         }
         Spacer(Modifier.height(28.dp))
 
+        Label("How Pulse measures this")
+        Spacer(Modifier.height(12.dp))
+        PulseCard {
+            listOf(
+                "Steps" to "Counted by the band.",
+                "Heart rate" to "The band's optical sensor, one reading about every 5 minutes.",
+                "Calories" to "Estimated from your height, weight, age and heart rate: resting burn plus extra when your heart rate is up.",
+                "Sleep" to "Estimated from heart rate and movement, not measured directly.",
+                "Recovery, strain, energy" to "Pulse's own formulas, tuned over time. Recovery needs 5 nights.",
+                "Not measured yet" to "HRV, breathing rate and blood oxygen.",
+            ).forEach { (title, text) ->
+                Text(title, style = PulseType.Title.copy(fontWeight = FontWeight.Normal, fontSize = 14.sp))
+                Spacer(Modifier.height(2.dp))
+                Text(text, style = PulseType.Caption)
+                Spacer(Modifier.height(12.dp))
+            }
+        }
+        Spacer(Modifier.height(32.dp))
+
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             PulseLockup(Modifier.height(72.dp))
             Spacer(Modifier.height(10.dp))
@@ -199,6 +244,18 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
             style = PulseType.Caption,
         )
         Spacer(Modifier.height(48.dp))
+    }
+
+    if (editingProfile) {
+        EditProfileDialog(
+            user = user,
+            metric = ui.metricUnits,
+            onSave = { updated ->
+                ui.saveProfile?.invoke(updated)
+                editingProfile = false
+            },
+            onDismiss = { editingProfile = false },
+        )
     }
 
     if (confirmRemove) {
@@ -248,4 +305,67 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChang
             ),
         )
     }
+}
+
+@Composable
+private fun EditProfileDialog(user: UserProfile, metric: Boolean, onSave: (UserProfile) -> Unit, onDismiss: () -> Unit) {
+    val totalInches = (user.heightCm / 2.54).roundToInt()
+    var name by remember { mutableStateOf(user.name) }
+    var cm by remember { mutableStateOf(String.format(Locale.US, "%.0f", user.heightCm)) }
+    var feet by remember { mutableStateOf((totalInches / 12).toString()) }
+    var inches by remember { mutableStateOf((totalInches % 12).toString()) }
+    var weight by remember {
+        mutableStateOf(String.format(Locale.US, "%.1f", if (metric) user.weightKg else user.weightKg * 2.20462))
+    }
+    var age by remember { mutableStateOf(user.ageYears.toString()) }
+    var male by remember { mutableStateOf(user.male) }
+
+    val heightCm: Double? = if (metric) {
+        cm.toDoubleOrNull()
+    } else {
+        val f = feet.toIntOrNull()
+        val i = inches.toIntOrNull()
+        if (f != null && i != null) (f * 12 + i) * 2.54 else null
+    }
+    val weightKg: Double? = weight.toDoubleOrNull()?.let { if (metric) it else it / 2.20462 }
+    val ageYears: Int? = age.toIntOrNull()
+    val valid = name.isNotBlank() &&
+        heightCm != null && heightCm in 100.0..250.0 &&
+        weightKg != null && weightKg in 30.0..250.0 &&
+        ageYears != null && ageYears in 10..100
+
+    val decimal = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+    val number = KeyboardOptions(keyboardType = KeyboardType.Number)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit profile") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true)
+                if (metric) {
+                    OutlinedTextField(cm, { cm = it }, label = { Text("Height (cm)") }, singleLine = true, keyboardOptions = number)
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(feet, { feet = it }, label = { Text("Feet") }, singleLine = true, keyboardOptions = number, modifier = Modifier.weight(1f))
+                        OutlinedTextField(inches, { inches = it }, label = { Text("Inches") }, singleLine = true, keyboardOptions = number, modifier = Modifier.weight(1f))
+                    }
+                }
+                OutlinedTextField(
+                    weight, { weight = it }, label = { Text(if (metric) "Weight (kg)" else "Weight (lb)") },
+                    singleLine = true, keyboardOptions = decimal,
+                )
+                OutlinedTextField(age, { age = it }, label = { Text("Age") }, singleLine = true, keyboardOptions = number)
+                SegmentedControl(options = listOf("Male", "Female"), selectedIndex = if (male) 0 else 1, onSelect = { male = it == 0 })
+                Text("Sex is only used in the calorie estimate.", style = PulseType.Caption)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = valid,
+                onClick = { onSave(UserProfile(name.trim(), heightCm ?: user.heightCm, weightKg ?: user.weightKg, ageYears ?: user.ageYears, male)) },
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

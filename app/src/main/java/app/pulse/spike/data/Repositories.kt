@@ -13,7 +13,7 @@ import kotlin.random.Random
 class EmptyHealthRepository : HealthRepository {
     override val hasData = false
     override val device = DeviceStatus("G69_9307", connected = false, batteryPercent = 0, lastSync = "Never synced")
-    override val user = UserProfile("Vihaan", heightCm = 175, weightKg = 70)
+    override val user = UserProfile("Vihaan", heightCm = 180.3, weightKg = 72.5, ageYears = 25, male = true)
 
     override fun day(date: LocalDate) = DayData(
         date = date, recovery = 0, restingHr = 0, hrvMs = null, respiratoryRate = null,
@@ -27,7 +27,7 @@ class EmptyHealthRepository : HealthRepository {
 class SampleHealthRepository : HealthRepository {
     override val hasData = true
     override val device = DeviceStatus("G69_9307", connected = true, batteryPercent = 65, lastSync = "2 min ago")
-    override val user = UserProfile("Vihaan", heightCm = 175, weightKg = 70)
+    override val user = UserProfile("Vihaan", heightCm = 180.3, weightKg = 72.5, ageYears = 25, male = true)
 
     override fun day(date: LocalDate): DayData {
         val rnd = Random(date.toEpochDay())
@@ -115,18 +115,22 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
             )
         }
 
-    override val user = UserProfile("Vihaan", heightCm = 175, weightKg = 70)
+    override val user: UserProfile get() = db.loadProfile()
 
     private val nightCache = HashMap<LocalDate, SleepNight?>()
 
     override fun day(date: LocalDate): DayData {
+        val profile = user
+        val maxHr = profile.maxHr
         val points = db.heartRate(date)
         val bpms = points.map { it.bpm }
-        val (steps, calories, _) = db.stepTotals(date)
+        val (steps, _, _) = db.stepTotals(date)
+        val elapsedMinutes = if (date == LocalDate.now()) LocalTime.now().let { it.hour * 60 + it.minute } else 1440
+        val calories = Analysis.caloriesEstimate(bpms, elapsedMinutes, profile)
 
         val zones = IntArray(5)
         for (bpm in bpms) {
-            val fraction = bpm / 190.0
+            val fraction = bpm / maxHr.toDouble()
             if (fraction >= 0.5) zones[min(4, ((fraction - 0.5) / 0.1).toInt())] += 5
         }
 
@@ -143,8 +147,8 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
         }
 
         // Recovery needs a personal baseline: 5 nights in total (PRD section 5).
-        val recovery = if (night != null && previous.size >= 4) recoveryFor(date, night, previous, performance) else null
-        val strain = if (bpms.isEmpty()) 0.0 else Analysis.strainFromHeartRate(bpms)
+        val recovery = if (night != null && previous.size >= 4) recoveryFor(date, night, previous, performance, maxHr) else null
+        val strain = if (bpms.isEmpty()) 0.0 else Analysis.strainFromHeartRate(bpms, maxHr)
 
         // Energy starts from how rested you are at waking up.
         val wakeMinute = if (night != null) (18 * 60 + (night.lastSlot + 1) * 5 - 1440).coerceIn(0, 1439) else 7 * 60
@@ -153,7 +157,7 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
             night != null -> performance.toDouble()
             else -> 70.0
         }
-        val energySeries = Analysis.energyCurve(points, wakeMinute, startEnergy)
+        val energySeries = Analysis.energyCurve(points, wakeMinute, startEnergy, maxHr)
         val hours = IntArray(24)
         for ((block, n) in db.stepBlocks(date)) if (block in 0..95) hours[block / 4] += n
 
@@ -221,10 +225,10 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
      * PRD section 5, with the inputs we don't have (SpO2 and the "how do I feel" slider) left out
      * and the weights shared out again: resting heart rate vs your baseline 50%, sleep 37.5%, yesterday's strain 12.5%.
      */
-    private fun recoveryFor(date: LocalDate, night: SleepNight, previous: List<SleepNight>, performance: Int): Int {
+    private fun recoveryFor(date: LocalDate, night: SleepNight, previous: List<SleepNight>, performance: Int, maxHr: Int): Int {
         val baseline = previous.map { it.restingHr }.average()
         val restingScore = (70 + (baseline - night.restingHr) * 10).coerceIn(0.0, 100.0)
-        val yesterdayStrain = Analysis.strainFromHeartRate(db.heartRate(date.minusDays(1)).map { it.bpm })
+        val yesterdayStrain = Analysis.strainFromHeartRate(db.heartRate(date.minusDays(1)).map { it.bpm }, maxHr)
         val strainScore = (100 - yesterdayStrain / 21 * 60).coerceIn(0.0, 100.0)
         return (0.5 * restingScore + 0.375 * performance + 0.125 * strainScore).roundToInt()
     }

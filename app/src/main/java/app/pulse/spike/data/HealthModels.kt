@@ -53,7 +53,16 @@ data class DeviceStatus(
     val lastSync: String,
 )
 
-data class UserProfile(val name: String, val heightCm: Int, val weightKg: Int)
+/** Used for calories and heart-rate zones. Age gives the maximum heart rate (220 minus age). */
+data class UserProfile(
+    val name: String,
+    val heightCm: Double,
+    val weightKg: Double,
+    val ageYears: Int,
+    val male: Boolean,
+) {
+    val maxHr: Int get() = 220 - ageYears
+}
 
 /**
  * Everything the screens know about the user's health comes through this one interface.

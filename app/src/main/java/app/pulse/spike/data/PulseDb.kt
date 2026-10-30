@@ -127,6 +127,23 @@ class PulseDb(context: Context) : SQLiteOpenHelper(context, "pulse.db", null, 1)
         }
     }
 
+    /** The owner's profile. Until it is edited it holds 5 ft 11 in and 72.5 kg, with a placeholder age. */
+    fun loadProfile(): UserProfile = UserProfile(
+        name = getMeta("profile_name") ?: "Vihaan",
+        heightCm = getMeta("profile_height_cm")?.toDoubleOrNull() ?: 180.3,
+        weightKg = getMeta("profile_weight_kg")?.toDoubleOrNull() ?: 72.5,
+        ageYears = getMeta("profile_age")?.toIntOrNull() ?: 25,
+        male = (getMeta("profile_male") ?: "true") == "true",
+    )
+
+    fun saveProfile(p: UserProfile) {
+        setMeta("profile_name", p.name)
+        setMeta("profile_height_cm", p.heightCm.toString())
+        setMeta("profile_weight_kg", p.weightKg.toString())
+        setMeta("profile_age", p.ageYears.toString())
+        setMeta("profile_male", p.male.toString())
+    }
+
     @Synchronized
     fun setMeta(key: String, value: String) {
         val values = ContentValues().apply {
