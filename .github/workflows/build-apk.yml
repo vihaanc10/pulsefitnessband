@@ -76,12 +76,16 @@ jobs:
         run: |
           set +e
           : > publish.log
-          gh release delete latest --yes --cleanup-tag >> publish.log 2>&1
-          sleep 3
-          gh release create latest Pulse.apk --target "$GITHUB_SHA" --title "Pulse (latest)" \
+          TAG="build-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" Pulse.apk --title "Pulse (build ${GITHUB_RUN_NUMBER})" --latest \
             --notes "Download Pulse.apk, open it on your Android phone and tap Install. See the README for the two-minute steps." >> publish.log 2>&1
           rc=$?
           if [ $rc -ne 0 ]; then
             while IFS= read -r line; do echo "::error::${line:0:800}"; done < publish.log
             exit $rc
           fi
+          # Keep only the 5 newest builds on the Releases page.
+          gh release list --limit 50 --json tagName --jq '.[5:][].tagName' 2>/dev/null | while read -r old; do
+            gh release delete "$old" --yes --cleanup-tag > /dev/null 2>&1
+          done
+          exit 0
