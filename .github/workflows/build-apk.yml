@@ -10,6 +10,11 @@ on:
 permissions:
   contents: write
 
+# Builds run one after another, so two quick pushes never fight over the "latest" release.
+concurrency:
+  group: build-apk
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
