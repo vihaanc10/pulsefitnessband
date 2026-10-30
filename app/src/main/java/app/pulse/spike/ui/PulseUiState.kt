@@ -33,6 +33,9 @@ class PulseUiState {
 
     var addDeviceOpen by mutableStateOf(false)
 
+    /** The logo intro shows once each time the app starts. */
+    var introDone by mutableStateOf(false)
+
     /** Set by the ViewModel: forgets the saved band (true = also delete its data). */
     var removeDeviceAction: ((Boolean) -> Unit)? = null
 

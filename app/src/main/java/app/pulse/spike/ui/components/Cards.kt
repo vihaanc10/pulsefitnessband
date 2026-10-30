@@ -193,6 +193,8 @@ fun EmptyState(
     onAddDevice: (() -> Unit)? = null,
 ) {
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        PulseLockup(Modifier.height(84.dp))
+        Spacer(Modifier.height(36.dp))
         ProgressRing(progress = 0f, color = PulseColors.Green, modifier = Modifier.size(200.dp)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("--", style = PulseType.Display, color = PulseColors.TextTertiary)

@@ -3,6 +3,7 @@ package app.pulse.spike.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -33,8 +34,10 @@ import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.pulse.spike.R
 import app.pulse.spike.ui.theme.PulseColors
 import app.pulse.spike.ui.theme.PulseType
 
@@ -133,20 +136,14 @@ fun NavIcon(tab: PulseTab, tint: Color, modifier: Modifier = Modifier) {
     }
 }
 
-/** Pulse's own small logo mark: a ring with a heartbeat line. */
+/** The Pulse logo mark (the heartbeat line turning into a P). Set a height; the width follows. */
 @Composable
 fun PulseMark(modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        val w = size.width
-        val h = size.height
-        drawCircle(
-            color = PulseColors.TextPrimary, radius = size.minDimension / 2f - 1.dp.toPx(),
-            style = Stroke(width = 1.3.dp.toPx()),
-        )
-        val beat = Path().apply {
-            moveTo(w * 0.2f, h * 0.52f); lineTo(w * 0.38f, h * 0.52f); lineTo(w * 0.5f, h * 0.28f)
-            lineTo(w * 0.62f, h * 0.74f); lineTo(w * 0.72f, h * 0.52f); lineTo(w * 0.8f, h * 0.52f)
-        }
-        drawPath(beat, PulseColors.Green, style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-    }
+    Image(painter = painterResource(R.drawable.logo_mark), contentDescription = "Pulse", modifier = modifier)
+}
+
+/** The full logo: the mark with the PULSE lettering under it. Set a height; the width follows. */
+@Composable
+fun PulseLockup(modifier: Modifier = Modifier) {
+    Image(painter = painterResource(R.drawable.logo_lockup), contentDescription = "Pulse", modifier = modifier)
 }

@@ -54,7 +54,7 @@ fun DashboardHeader(
     Column(modifier.fillMaxWidth()) {
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            PulseMark(Modifier.size(20.dp))
+            PulseMark(Modifier.height(22.dp))
             Spacer(Modifier.width(10.dp))
             Text("PULSE", style = PulseType.Label.copy(fontSize = 11.sp, letterSpacing = 3.sp), color = PulseColors.TextPrimary)
             if (isSample) {

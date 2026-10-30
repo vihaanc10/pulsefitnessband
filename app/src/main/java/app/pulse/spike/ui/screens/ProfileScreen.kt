@@ -42,6 +42,7 @@ import app.pulse.spike.ui.PulseUiState
 import app.pulse.spike.ui.components.Label
 import app.pulse.spike.ui.components.PulseButton
 import app.pulse.spike.ui.components.PulseCard
+import app.pulse.spike.ui.components.PulseLockup
 import app.pulse.spike.ui.components.SegmentedControl
 import app.pulse.spike.ui.components.Stat
 import app.pulse.spike.ui.components.StatStrip
@@ -187,8 +188,12 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
         }
         Spacer(Modifier.height(28.dp))
 
-        Text("Pulse 0.0.1 (Phase 0)", style = PulseType.Caption)
-        Spacer(Modifier.height(6.dp))
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            PulseLockup(Modifier.height(72.dp))
+            Spacer(Modifier.height(10.dp))
+            Text("Version 0.0.1", style = PulseType.Caption)
+        }
+        Spacer(Modifier.height(18.dp))
         Text(
             "Wellness only. Readings from a consumer band's optical sensor are for personal trends, not medical advice or diagnosis.",
             style = PulseType.Caption,

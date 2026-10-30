@@ -35,6 +35,7 @@ import app.pulse.spike.SpikeViewModel
 import app.pulse.spike.ble.hasBlePermissions
 import app.pulse.spike.ui.components.PulseButton
 import app.pulse.spike.ui.components.PulseCard
+import app.pulse.spike.ui.components.PulseMark
 import app.pulse.spike.ui.theme.PulseColors
 import app.pulse.spike.ui.theme.PulseType
 
@@ -79,6 +80,8 @@ fun AddDeviceScreen(vm: SpikeViewModel, onClose: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
+                PulseMark(Modifier.height(26.dp))
+                Spacer(Modifier.height(18.dp))
                 Text("Add a device", style = PulseType.Headline)
                 Spacer(Modifier.height(10.dp))
                 Text(

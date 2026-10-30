@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,7 +17,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -29,12 +32,14 @@ import app.pulse.spike.data.RealHealthRepository
 import app.pulse.spike.data.SampleHealthRepository
 import app.pulse.spike.ui.components.BottomNavigation
 import app.pulse.spike.ui.components.PulseTab
+import app.pulse.spike.ui.components.PulseLockup
 import app.pulse.spike.ui.screens.CoachScreen
 import app.pulse.spike.ui.screens.HealthScreen
 import app.pulse.spike.ui.screens.HomeScreen
 import app.pulse.spike.ui.screens.ProfileScreen
 import app.pulse.spike.ui.screens.SleepScreen
 import app.pulse.spike.ui.theme.PulseColors
+import kotlinx.coroutines.delay
 
 /**
  * The whole app: four tabs with a bottom bar, plus the Bluetooth lab (the Phase 0 tools),
@@ -69,33 +74,47 @@ fun PulseApp(vm: SpikeViewModel) {
     BackHandler(enabled = ui.labOpen && connection == null && !ui.addDeviceOpen) { ui.labOpen = false }
     BackHandler(enabled = !ui.labOpen && !ui.addDeviceOpen && ui.tab != PulseTab.Home) { ui.tab = PulseTab.Home }
 
-    if (ui.addDeviceOpen) {
-        AddDeviceScreen(vm, onClose = { ui.addDeviceOpen = false })
-    } else if (ui.labOpen) {
-        val current = connection
-        if (current == null) {
-            ScannerScreen(vm, onExit = { ui.labOpen = false })
+    LaunchedEffect(Unit) {
+        delay(1300)
+        ui.introDone = true
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        if (ui.addDeviceOpen) {
+            AddDeviceScreen(vm, onClose = { ui.addDeviceOpen = false })
+        } else if (ui.labOpen) {
+            val current = connection
+            if (current == null) {
+                ScannerScreen(vm, onExit = { ui.labOpen = false })
+            } else {
+                DeviceScreen(vm, current)
+            }
         } else {
-            DeviceScreen(vm, current)
-        }
-    } else {
-        Column(Modifier.fillMaxSize().background(PulseColors.Background)) {
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                AnimatedContent(
-                    targetState = ui.tab,
-                    transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(140)) },
-                    label = "tab",
-                ) { tab ->
-                    when (tab) {
-                        PulseTab.Home -> HomeScreen(ui, repo)
-                        PulseTab.Sleep -> SleepScreen(ui, repo)
-                        PulseTab.Health -> HealthScreen(ui, repo)
-                        PulseTab.Coach -> CoachScreen(ui, repo)
-                        PulseTab.Profile -> ProfileScreen(ui, repo, onSync = { vm.syncNow() })
+            Column(Modifier.fillMaxSize().background(PulseColors.Background)) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    AnimatedContent(
+                        targetState = ui.tab,
+                        transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(140)) },
+                        label = "tab",
+                    ) { tab ->
+                        when (tab) {
+                            PulseTab.Home -> HomeScreen(ui, repo)
+                            PulseTab.Sleep -> SleepScreen(ui, repo)
+                            PulseTab.Health -> HealthScreen(ui, repo)
+                            PulseTab.Coach -> CoachScreen(ui, repo)
+                            PulseTab.Profile -> ProfileScreen(ui, repo, onSync = { vm.syncNow() })
+                        }
                     }
                 }
+                BottomNavigation(selected = ui.tab, onSelect = { ui.tab = it })
             }
-            BottomNavigation(selected = ui.tab, onSelect = { ui.tab = it })
+        }
+
+        // The logo shows for a moment when the app starts, then fades away.
+        AnimatedVisibility(visible = !ui.introDone, enter = fadeIn(tween(0)), exit = fadeOut(tween(500))) {
+            Box(Modifier.fillMaxSize().background(PulseColors.Background), contentAlignment = Alignment.Center) {
+                PulseLockup(Modifier.height(120.dp))
+            }
         }
     }
 }
