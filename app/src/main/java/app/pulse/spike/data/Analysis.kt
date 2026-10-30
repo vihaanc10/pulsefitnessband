@@ -22,8 +22,8 @@ data class SleepNight(
 
 /** Our own first-guess formulas. They are meant to be tuned against real nights. */
 object Analysis {
-    /** 18:00 the evening before up to 12:00 the next day, in 5-minute slots. */
-    const val WINDOW_SLOTS = 216
+    /** 18:00 the evening before up to 15:00 the next day, in 5-minute slots. */
+    const val WINDOW_SLOTS = 252
 
     /**
      * [hr] has one reading per slot (0 = none). [stepsPerSlot] is the steps taken in each slot.
@@ -61,14 +61,13 @@ object Analysis {
         }
         if (bestCount < 36) return null // less than 3 hours of sleep-like readings
 
-        var deep = 0
-        var light = 0
         val sleepHr = ArrayList<Int>()
-        for (i in bestFirst..bestLast) {
-            if (!sleepLike[i]) continue
-            sleepHr.add(hr[i])
-            if (hr[i] <= baseline + 3) deep++ else light++
-        }
+        for (i in bestFirst..bestLast) if (sleepLike[i]) sleepHr.add(hr[i])
+        // Stages are relative to this night: the calmest quarter of the readings counts as deep sleep.
+        val sortedSleep = sleepHr.sorted()
+        val deepLimit = sortedSleep[(sortedSleep.size * 0.25).toInt()]
+        val deep = sleepHr.count { it <= deepLimit }
+        val light = sleepHr.size - deep
         val total = bestLast - bestFirst + 1
         val withReading = (bestFirst..bestLast).count { hr[it] in 30..220 }
         return SleepNight(

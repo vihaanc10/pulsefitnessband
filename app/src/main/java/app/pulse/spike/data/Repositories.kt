@@ -184,7 +184,7 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
             if (block in 72..95) for (k in 0..2) steps[(block - 72) * 3 + k] = n / 3.0
         }
         for ((block, n) in db.stepBlocks(date)) {
-            if (block in 0..47) for (k in 0..2) steps[72 + block * 3 + k] = n / 3.0
+            if (block in 0..59) for (k in 0..2) steps[72 + block * 3 + k] = n / 3.0
         }
         return Analysis.detectSleep(hr, steps)
     }

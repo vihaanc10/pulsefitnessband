@@ -25,9 +25,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -38,6 +40,7 @@ import app.pulse.spike.ui.theme.PulseType
 
 enum class PulseTab(val label: String) {
     Home("Home"),
+    Sleep("Sleep"),
     Health("Health"),
     Coach("Coach"),
     Profile("Profile"),
@@ -98,6 +101,11 @@ fun NavIcon(tab: PulseTab, tint: Color, modifier: Modifier = Modifier) {
                 }
                 drawPath(roof, tint, style = stroke)
                 drawPath(body, tint, style = stroke)
+            }
+            PulseTab.Sleep -> {
+                val outer = Path().apply { addOval(Rect(w * 0.12f, h * 0.12f, w * 0.88f, h * 0.88f)) }
+                val cut = Path().apply { addOval(Rect(w * 0.36f, h * 0.0f, w * 1.06f, h * 0.7f)) }
+                drawPath(Path.combine(PathOperation.Difference, outer, cut), tint, style = stroke)
             }
             PulseTab.Health -> {
                 val beat = Path().apply {

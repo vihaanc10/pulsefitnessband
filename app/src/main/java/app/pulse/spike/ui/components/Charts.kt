@@ -75,17 +75,35 @@ fun HeartRateChart(
             strokeWidth = hairline, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)),
         )
 
-        val line = Path()
-        points.forEachIndexed { i, p -> if (i == 0) line.moveTo(x(p), y(p.bpm)) else line.lineTo(x(p), y(p.bpm)) }
-        val area = Path().apply {
-            addPath(line)
-            lineTo(x(points.last()), size.height)
-            lineTo(x(points.first()), size.height)
-            close()
+        // A gap of more than 20 minutes (band off, or no readings) breaks the line instead of drawing across it.
+        val segments = ArrayList<List<HrPoint>>()
+        var current = ArrayList<HrPoint>()
+        for (p in points) {
+            if (current.isNotEmpty() && p.minuteOfDay - current.last().minuteOfDay > 20) {
+                segments.add(current)
+                current = ArrayList()
+            }
+            current.add(p)
         }
+        if (current.isNotEmpty()) segments.add(current)
+
         clipRect(right = size.width * reveal.value) {
-            drawPath(area, brush = Brush.verticalGradient(listOf(color.copy(alpha = 0.26f), Color.Transparent)))
-            drawPath(line, color = color, style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            for (segment in segments) {
+                if (segment.size < 2) {
+                    drawCircle(color, 1.5.dp.toPx(), Offset(x(segment[0]), y(segment[0].bpm)))
+                    continue
+                }
+                val line = Path()
+                segment.forEachIndexed { i, p -> if (i == 0) line.moveTo(x(p), y(p.bpm)) else line.lineTo(x(p), y(p.bpm)) }
+                val area = Path().apply {
+                    addPath(line)
+                    lineTo(x(segment.last()), size.height)
+                    lineTo(x(segment.first()), size.height)
+                    close()
+                }
+                drawPath(area, brush = Brush.verticalGradient(listOf(color.copy(alpha = 0.26f), Color.Transparent)))
+                drawPath(line, color = color, style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            }
         }
         if (reveal.value >= 1f) {
             val last = points.last()

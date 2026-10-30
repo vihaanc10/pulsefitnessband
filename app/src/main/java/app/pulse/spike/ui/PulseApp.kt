@@ -26,6 +26,7 @@ import app.pulse.spike.ui.screens.CoachScreen
 import app.pulse.spike.ui.screens.HealthScreen
 import app.pulse.spike.ui.screens.HomeScreen
 import app.pulse.spike.ui.screens.ProfileScreen
+import app.pulse.spike.ui.screens.SleepScreen
 import app.pulse.spike.ui.theme.PulseColors
 
 /**
@@ -67,6 +68,7 @@ fun PulseApp(vm: SpikeViewModel) {
                 ) { tab ->
                     when (tab) {
                         PulseTab.Home -> HomeScreen(ui, repo)
+                        PulseTab.Sleep -> SleepScreen(ui, repo)
                         PulseTab.Health -> HealthScreen(ui, repo)
                         PulseTab.Coach -> CoachScreen(ui, repo)
                         PulseTab.Profile -> ProfileScreen(ui, repo, onSync = { vm.syncNow() })

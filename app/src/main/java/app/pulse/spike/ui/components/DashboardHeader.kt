@@ -84,6 +84,17 @@ fun DashboardHeader(
     }
 }
 
+/** "<  Today  >" with arrows to move between days. */
+@Composable
+fun DateSelector(date: LocalDate, canGoNext: Boolean, onPrev: () -> Unit, onNext: () -> Unit, modifier: Modifier = Modifier) {
+    val text = if (date == LocalDate.now()) "Today" else date.format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault()))
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        ArrowButton("\u2039", enabled = true, onClick = onPrev)
+        Label(text, color = PulseColors.TextPrimary)
+        ArrowButton("\u203A", enabled = canGoNext, onClick = onNext)
+    }
+}
+
 @Composable
 private fun ArrowButton(glyph: String, enabled: Boolean, onClick: () -> Unit) {
     Box(
