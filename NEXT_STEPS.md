@@ -11,6 +11,10 @@ Like a normal fitness app (WHOOP / QWatch Pro): open it, wait about 30 seconds, 
 - GitHub builds `Pulse.apk` on every push (`.github/workflows/build-apk.yml`) and attaches it to the "Pulse (latest)" release. The repo is private, so the download link only works for people with repo access.
 - The band was worn overnight with heart-rate logging on (every 5 minutes).
 
+## Update, 2026-10-30 evening
+Real data now shows on the phone: auto-sync works (Add device, tap the band), heart rate, steps, battery. Sleep, recovery and strain are estimated from the heart-rate log and steps (`data/Analysis.kt`, used by `RealHealthRepository`). Recovery unlocks after 5 nights (night 1 of 5 found). Tabs are now Home, Sleep, Health, Coach, Profile; Home has the WHOOP-style three rings. The repo is public. Calories from the band (about 1,600) are in unknown units, unverified.
+**Next:** (1) background sync so data is waiting each morning; (2) fixed signing key so APK updates install over the old one (GitHub secret needed, owner must add it; do NOT commit a keystore to the public repo); (3) notifications; (4) tune sleep detection against what the owner remembers; (5) email in git history is public, offer the noreply rewrite.
+
 ## Owner wants the repo public (cloud session can't do it)
 The owner asked for `vihaanc10/pulsefitnessband` to be public. The cloud session is blocked from changing repository settings (HTTP 403), so the owner must do it: GitHub > repo > Settings > Danger Zone > Change repository visibility. **Before they do:** every commit carries the owner's real email (`(private email removed)`) and `PROTOCOL_NOTES.md` has the band's MAC address. Offer to (a) blank the MAC and (b) rewrite history with GitHub's noreply email so the email isn't public. No passwords or keys were found in the repo.
 
