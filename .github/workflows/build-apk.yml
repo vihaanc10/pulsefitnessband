@@ -22,9 +22,17 @@ jobs:
           java-version: 17
 
       - name: Build the app
+        shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon 2>&1 | tee build.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Show the errors
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "^e: |error:|AAPT|What went wrong|Resource|Execution failed" build.log | head -25 | while IFS= read -r line; do echo "::error::${line:0:900}"; done
 
       - name: Name the install file
         run: cp app/build/outputs/apk/debug/app-debug.apk Pulse.apk
