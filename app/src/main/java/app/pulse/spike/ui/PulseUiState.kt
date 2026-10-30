@@ -36,6 +36,10 @@ class PulseUiState {
     /** Set by the ViewModel: forgets the saved band (true = also delete its data). */
     var removeDeviceAction: ((Boolean) -> Unit)? = null
 
+    /** Set by the ViewModel: remembers a notification switch, and sends a test notification (false = blocked). */
+    var persistNotification: ((String, Boolean) -> Unit)? = null
+    var testNotification: (() -> Boolean)? = null
+
     /** Set by the ViewModel: starts a sync. */
     var syncAction: (() -> Unit)? = null
     var coachQuestion by mutableStateOf<Int?>(null)

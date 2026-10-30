@@ -50,6 +50,7 @@ class MessageLog(private val dir: File) {
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         val file = File(dir, "log_${stamp}_${address.replace(":", "")}.csv")
         file.writeText(HEADER + "\n")
+        savedFiles().drop(20).forEach { it.delete() } // background syncs make many logs; keep the newest 20
         synchronized(lock) {
             currentFile = file
             _entries.value = emptyList()

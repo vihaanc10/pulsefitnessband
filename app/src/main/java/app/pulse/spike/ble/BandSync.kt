@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * The "open the app and it syncs" part. Connects to the saved band, sets its clock, then reads the
@@ -20,7 +21,6 @@ class BandSync(
     private val onStatus: (syncing: Boolean, message: String) -> Unit,
     private val onDataChanged: () -> Unit,
 ) {
-    @Volatile private var running = false
     @Volatile private var pendingHrDay: LocalDate = LocalDate.now()
     @Volatile private var hrGot = false
     @Volatile private var hrNoData = false
@@ -56,9 +56,12 @@ class BandSync(
         }
     }
 
+    private companion object {
+        val busy = AtomicBoolean(false)
+    }
+
     suspend fun run(address: String, name: String?) {
-        if (running) return
-        running = true
+        if (!busy.compareAndSet(false, true)) return // another sync (app or background) is already running
         var connection: BandConnection? = null
         try {
             onStatus(true, "Connecting to your band...")
@@ -111,7 +114,7 @@ class BandSync(
         } finally {
             connection?.listener = null
             connection?.disconnect()
-            running = false
+            busy.set(false)
         }
     }
 

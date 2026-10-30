@@ -1,6 +1,11 @@
 package app.pulse.spike.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -16,6 +21,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pulse.spike.SpikeViewModel
 import app.pulse.spike.data.RealHealthRepository
@@ -44,6 +51,19 @@ fun PulseApp(vm: SpikeViewModel) {
 
     // Like QWatch Pro: open the app and it fetches the latest from the band.
     LaunchedEffect(Unit) { vm.syncNow() }
+
+    // Android 13+ needs permission for notifications. Ask once, after a band has been added.
+    val context = LocalContext.current
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(ui.bandSaved) {
+        if (ui.bandSaved && Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            vm.db.getMeta("asked_notifications") == null
+        ) {
+            vm.db.setMeta("asked_notifications", "1")
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     BackHandler(enabled = ui.addDeviceOpen) { ui.addDeviceOpen = false }
     BackHandler(enabled = ui.labOpen && connection == null && !ui.addDeviceOpen) { ui.labOpen = false }

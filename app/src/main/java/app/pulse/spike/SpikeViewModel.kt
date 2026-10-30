@@ -8,6 +8,8 @@ import app.pulse.spike.ble.BandSync
 import app.pulse.spike.ble.BleScanner
 import app.pulse.spike.ble.MessageLog
 import app.pulse.spike.ble.ScanItem
+import app.pulse.spike.background.BackgroundSync
+import app.pulse.spike.background.Notifier
 import app.pulse.spike.ble.hasBlePermissions
 import app.pulse.spike.data.PulseDb
 import app.pulse.spike.ui.PulseUiState
@@ -45,6 +47,12 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         ui.bandSaved = db.getMeta("band_address") != null
         ui.syncAction = { syncNow() }
         ui.removeDeviceAction = { deleteData -> removeDevice(deleteData) }
+        for (key in listOf("recovery", "bedtime", "battery", "sync")) {
+            db.getMeta("notify_$key")?.let { ui.notifications[key] = it == "true" }
+        }
+        ui.persistNotification = { key, on -> db.setMeta("notify_$key", on.toString()) }
+        ui.testNotification = { Notifier(getApplication(), db).sendTest() }
+        if (ui.bandSaved) BackgroundSync.schedule(getApplication())
     }
 
     /** Connects to the saved band in the background and copies its readings onto the phone. */
@@ -67,12 +75,14 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         ui.syncStatus = ""
         ui.dataVersion += 1
         ui.tab = PulseTab.Home
+        BackgroundSync.schedule(getApplication())
         syncNow()
     }
 
     /** Forgets the saved band, so another one can be added. */
     fun removeDevice(deleteData: Boolean) {
         db.removeDevice(deleteData)
+        BackgroundSync.cancel(getApplication())
         ui.bandSaved = false
         ui.syncStatus = ""
         ui.dataVersion += 1
@@ -84,6 +94,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         db.setMeta("band_address", item.address)
         db.setMeta("band_name", item.name ?: "Your band")
         ui.bandSaved = true
+        BackgroundSync.schedule(getApplication())
         log.startSession(item.address, item.name)
         val conn = BandConnection(getApplication(), log)
         _device.value = item

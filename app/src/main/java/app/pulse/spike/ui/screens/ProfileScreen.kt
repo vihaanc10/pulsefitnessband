@@ -54,6 +54,7 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
     val user = repo.user
     val device = repo.device
     var confirmRemove by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<String?>(null) }
 
     Column(
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
@@ -153,7 +154,23 @@ fun ProfileScreen(ui: PulseUiState, repo: HealthRepository, onSync: () -> Unit) 
                 Triple("sync", "Sync problems", "If the band cannot reach the app"),
             )
             rows.forEach { (key, title, subtitle) ->
-                SwitchRow(title, subtitle, ui.notifications[key] == true) { ui.notifications[key] = it }
+                SwitchRow(title, subtitle, ui.notifications[key] == true) { ui.notifications[key] = it; ui.persistNotification?.invoke(key, it) }
+            }
+            Spacer(Modifier.height(14.dp))
+            PulseButton(
+                "Send a test notification",
+                onClick = {
+                    testResult = if (ui.testNotification?.invoke() == true) {
+                        "Sent. Look in your notification shade."
+                    } else {
+                        "Notifications are blocked. Allow them in Android Settings > Apps > Pulse > Notifications."
+                    }
+                },
+                filled = false,
+            )
+            testResult?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, style = PulseType.Caption)
             }
         }
         Spacer(Modifier.height(28.dp))
