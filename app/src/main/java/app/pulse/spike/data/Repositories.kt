@@ -212,6 +212,9 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
             energySeries = energySeries,
             hasEnergy = energySeries.isNotEmpty(),
             stepsByHour = hours.toList(),
+            sleepFirstSlot = night?.firstSlot,
+            sleepLastSlot = night?.lastSlot,
+            sleepEdited = db.getMeta("sleep_override_$date") != null,
         )
     }
 
@@ -254,6 +257,10 @@ class RealHealthRepository(private val db: PulseDb) : HealthRepository {
         }
         for ((block, n) in db.stepBlocks(date)) {
             if (block in 0..59) for (k in 0..2) steps[72 + block * 3 + k] = n / 3.0
+        }
+        val manual = db.getMeta("sleep_override_$date")?.split(",")?.mapNotNull { it.toIntOrNull() }
+        if (manual != null && manual.size == 2) {
+            Analysis.nightFromWindow(hr, steps, manual[0], manual[1])?.let { return it }
         }
         return Analysis.detectSleep(hr, steps)
     }

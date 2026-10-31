@@ -57,6 +57,10 @@ class PulseUiState {
     var saveProfile: ((app.pulse.spike.data.UserProfile) -> Unit)? = null
     var persistUnits: ((Boolean) -> Unit)? = null
 
+    /** Set by the ViewModel: save or clear a hand-edited sleep time (date, first slot, last slot). */
+    var saveSleepOverride: ((java.time.LocalDate, Int, Int) -> Unit)? = null
+    var clearSleepOverride: ((java.time.LocalDate) -> Unit)? = null
+
     /** Set by the ViewModel: starts a sync. */
     var syncAction: (() -> Unit)? = null
     var coachQuestion by mutableStateOf<Int?>(null)

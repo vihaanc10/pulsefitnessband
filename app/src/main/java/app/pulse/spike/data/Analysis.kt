@@ -33,10 +33,17 @@ object Analysis {
     fun detectSleep(hr: IntArray, stepsPerSlot: DoubleArray): SleepNight? {
         val valid = hr.filter { it in 30..220 }
         if (valid.size < 36) return null // under 3 hours of readings in the whole window
-        val sorted = valid.sorted()
-        val baseline = sorted[(sorted.size * 0.2).toInt()] // roughly the lowest fifth of the readings
 
-        val sleepLike = BooleanArray(hr.size) { i -> hr[i] in 30..220 && hr[i] <= baseline + 10 && stepsPerSlot[i] < 4.0 }
+        // Smooth out single odd readings (median of three), then take the calmest tenth as the sleeping level.
+        val smooth = IntArray(hr.size) { i ->
+            val around = (i - 1..i + 1).filter { it in hr.indices && hr[it] in 30..220 }.map { hr[it] }.sorted()
+            if (hr[i] in 30..220 && around.isNotEmpty()) around[around.size / 2] else 0
+        }
+        val sortedSmooth = smooth.filter { it > 0 }.sorted()
+        val baseline = sortedSmooth[(sortedSmooth.size * 0.1).toInt()]
+
+        // Asleep = heart rate close to that sleeping level and no movement. Quiet time awake sits higher, so it no longer counts.
+        val sleepLike = BooleanArray(hr.size) { i -> smooth[i] > 0 && smooth[i] <= baseline + 7 && stepsPerSlot[i] < 4.0 }
 
         var bestFirst = -1
         var bestLast = -1
@@ -69,7 +76,7 @@ object Analysis {
                 val j = i + direction * k
                 if (j in hr.indices && sleepLike[j]) count++
             }
-            return count >= 4
+            return count >= 5
         }
         while (bestFirst < bestLast && (!sleepLike[bestFirst] || !solid(bestFirst, 1))) bestFirst++
         while (bestLast > bestFirst && (!sleepLike[bestLast] || !solid(bestLast, -1))) bestLast--
@@ -141,6 +148,34 @@ object Analysis {
             minute += 5
         }
         return out
+    }
+
+    /**
+     * A night whose start and end were set by hand (slots counted from 18:00 the evening before).
+     * Everything inside counts as asleep, except clearly active slots.
+     */
+    fun nightFromWindow(hr: IntArray, stepsPerSlot: DoubleArray, first: Int, last: Int): SleepNight? {
+        if (first < 0 || last >= hr.size || last <= first) return null
+        val readings = (first..last).filter { hr[it] in 30..220 }.map { hr[it] }
+        if (readings.isEmpty()) return null
+        val calm = readings.sorted()[(readings.size * 0.25).toInt()]
+        val sleepHr = ArrayList<Int>()
+        var awakeSlots = 0
+        for (i in first..last) {
+            val active = stepsPerSlot[i] >= 8.0 || (hr[i] in 30..220 && hr[i] > calm + 25)
+            if (active) awakeSlots++ else if (hr[i] in 30..220) sleepHr.add(hr[i])
+        }
+        val total = last - first + 1
+        val asleepSlots = total - awakeSlots
+        val sortedSleep = sleepHr.sorted()
+        val deepSlots = if (sortedSleep.isEmpty()) 0 else sleepHr.count { it <= sortedSleep[(sortedSleep.size * 0.25).toInt()] }
+        return SleepNight(
+            firstSlot = first, lastSlot = last,
+            asleepMin = asleepSlots * 5, awakeMin = awakeSlots * 5,
+            lightMin = (asleepSlots - deepSlots) * 5, deepMin = deepSlots * 5,
+            restingHr = lowestAverage(sleepHr),
+            coveragePercent = readings.size * 100 / total,
+        )
     }
 
     /** Calories burned per minute at a heart rate (Keytel et al. formula, which gives kilojoules). */

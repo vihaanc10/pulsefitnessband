@@ -1,6 +1,16 @@
 package app.pulse.spike.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.sp
+import app.pulse.spike.data.formatClock
+import app.pulse.spike.ui.components.PulseButton
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -73,21 +83,32 @@ fun SleepScreen(ui: PulseUiState, repo: HealthRepository) {
             )
         } else {
             val day = remember(date, repo) { repo.day(date) }
-            SleepContent(day, repo, date, isToday = date == today)
+            SleepContent(ui, day, repo, date, isToday = date == today)
         }
         Spacer(Modifier.height(48.dp))
     }
 }
 
 @Composable
-private fun SleepContent(day: DayData, repo: HealthRepository, date: LocalDate, isToday: Boolean) {
+private fun SleepContent(ui: PulseUiState, day: DayData, repo: HealthRepository, date: LocalDate, isToday: Boolean) {
+    var editing by remember { mutableStateOf(false) }
+    val canEdit = day.sleepFirstSlot != null || !day.hasSleep
     if (day.hasSleep) {
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             SleepRing(day.sleepPerformance, Modifier.size(290.dp), subtitle = formatDuration(day.sleepMinutes))
         }
         if (day.sleepWindow != null) {
             Spacer(Modifier.height(16.dp))
-            Text(day.sleepWindow, style = PulseType.Caption, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text(
+                day.sleepWindow + if (day.sleepEdited) "  (edited)" else "",
+                style = PulseType.Caption, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (canEdit) {
+            Spacer(Modifier.height(14.dp))
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                PulseButton("Wrong? Edit sleep times", onClick = { editing = true }, filled = false)
+            }
         }
         Spacer(Modifier.height(32.dp))
         StatStrip(
@@ -108,6 +129,10 @@ private fun SleepContent(day: DayData, repo: HealthRepository, date: LocalDate, 
             }
         }
     } else {
+        if (canEdit) {
+            PulseButton("Add sleep times by hand", onClick = { editing = true }, filled = false)
+            Spacer(Modifier.height(14.dp))
+        }
         PulseCard {
             Text(
                 "No night found for this day. Wear the band to sleep, then open Pulse in the morning. " +
@@ -157,5 +182,69 @@ private fun SleepContent(day: DayData, repo: HealthRepository, date: LocalDate, 
                 }
             }
         }
+    }
+}
+
+    if (editing) {
+        EditSleepDialog(
+            initialBed = day.sleepFirstSlot ?: 48, // 10:00 pm
+            initialWake = (day.sleepLastSlot ?: 149) + 1, // 6:30 am
+            edited = day.sleepEdited,
+            onSave = { bed, wake ->
+                ui.saveSleepOverride?.invoke(date, bed, wake - 1)
+                editing = false
+            },
+            onReset = {
+                ui.clearSleepOverride?.invoke(date)
+                editing = false
+            },
+            onDismiss = { editing = false },
+        )
+    }
+}
+
+/** Slots are 5 minutes long and counted from 18:00 the evening before. */
+@Composable
+private fun EditSleepDialog(
+    initialBed: Int,
+    initialWake: Int,
+    edited: Boolean,
+    onSave: (Int, Int) -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var bed by remember { mutableIntStateOf(initialBed) }
+    var wake by remember { mutableIntStateOf(initialWake) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit sleep times") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                TimeStepper("Fell asleep", bed) { bed = (bed + it).coerceIn(0, wake - 12) }
+                TimeStepper("Woke up", wake) { wake = (wake + it).coerceIn(bed + 12, 252) }
+                Text("Pulse recalculates your sleep, stages and recovery from these times.", style = PulseType.Caption)
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(bed, wake) }) { Text("Save") } },
+        dismissButton = {
+            Row {
+                if (edited) TextButton(onClick = onReset) { Text("Reset") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+    )
+}
+
+@Composable
+private fun TimeStepper(label: String, slot: Int, onStep: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Label(label)
+            Spacer(Modifier.height(4.dp))
+            Text(formatClock(18 * 60 + slot * 5), style = PulseType.Value.copy(fontSize = 22.sp))
+        }
+        PulseButton("-15", onClick = { onStep(-3) }, filled = false)
+        Spacer(Modifier.width(8.dp))
+        PulseButton("+15", onClick = { onStep(3) }, filled = false)
     }
 }

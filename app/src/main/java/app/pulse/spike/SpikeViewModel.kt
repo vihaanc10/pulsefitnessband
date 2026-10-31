@@ -69,6 +69,14 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         ui.persistNotification = { key, on -> db.setMeta("notify_$key", on.toString()) }
         db.getMeta("units_metric")?.let { ui.metricUnits = it == "true" }
         ui.persistUnits = { metric -> db.setMeta("units_metric", metric.toString()) }
+        ui.saveSleepOverride = { date, first, last ->
+            db.setMeta("sleep_override_$date", "$first,$last")
+            ui.dataVersion += 1
+        }
+        ui.clearSleepOverride = { date ->
+            db.deleteMeta("sleep_override_$date")
+            ui.dataVersion += 1
+        }
         ui.saveProfile = { profile ->
             db.saveProfile(profile)
             ui.dataVersion += 1 // calories and zones depend on the profile, so screens re-read

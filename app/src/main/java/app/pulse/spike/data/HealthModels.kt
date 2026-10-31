@@ -44,6 +44,10 @@ data class DayData(
     val hasEnergy: Boolean = false,
     /** Steps taken in each of the 24 hours (empty if unknown). */
     val stepsByHour: List<Int> = emptyList(),
+    /** The night as 5-minute slots counted from 18:00 the evening before, and whether it was edited by hand. */
+    val sleepFirstSlot: Int? = null,
+    val sleepLastSlot: Int? = null,
+    val sleepEdited: Boolean = false,
 )
 
 data class DeviceStatus(
