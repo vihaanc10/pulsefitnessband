@@ -183,7 +183,6 @@ private fun SleepContent(ui: PulseUiState, day: DayData, repo: HealthRepository,
             }
         }
     }
-}
 
     if (editing) {
         EditSleepDialog(
